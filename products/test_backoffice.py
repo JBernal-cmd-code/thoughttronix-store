@@ -159,6 +159,18 @@ def test_manage_list_shows_unavailable_products(
     assert "Unavailable" in page
 
 
+def test_manage_list_shows_featured_badge(client, staff_user, product):
+    client.force_login(staff_user)
+    url = reverse("products:manage_products")
+
+    assert "Featured" not in client.get(url).content.decode()
+
+    product.is_featured = True
+    product.save()
+
+    assert "Featured" in client.get(url).content.decode()
+
+
 # --- Form validation ---------------------------------------------------------
 
 

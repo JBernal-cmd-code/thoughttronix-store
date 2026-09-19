@@ -95,6 +95,21 @@ def test_detail_shows_availability(client, unavailable_product):
     assert "Unavailable" in response.content.decode()
 
 
+@pytest.mark.parametrize("page_name", ["catalog", "detail"])
+def test_featured_badge_shown_only_for_featured_products(client, product, page_name):
+    def page():
+        if page_name == "catalog":
+            return client.get(reverse("products:catalog")).content.decode()
+        return client.get(product.get_absolute_url()).content.decode()
+
+    assert "Featured" not in page()
+
+    product.is_featured = True
+    product.save()
+
+    assert "Featured" in page()
+
+
 def test_category_page_lists_only_its_products(client, product):
     defense = Category.objects.create(name="Defense", slug="defense")
     Product.objects.create(
