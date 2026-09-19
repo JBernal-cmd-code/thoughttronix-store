@@ -123,6 +123,20 @@ def test_staff_can_mark_a_product_unavailable(client, staff_user, product):
     assert not product.is_available
 
 
+def test_staff_can_feature_a_product(client, staff_user, product):
+    client.force_login(staff_user)
+    assert not product.is_featured
+    data = product_data(product.category, name=product.name, slug=product.slug)
+    data["is_featured"] = "on"
+
+    client.post(
+        reverse("products:manage_product_update", kwargs={"pk": product.pk}), data
+    )
+
+    product.refresh_from_db()
+    assert product.is_featured
+
+
 def test_staff_can_delete_a_product(client, staff_user, product):
     client.force_login(staff_user)
 
