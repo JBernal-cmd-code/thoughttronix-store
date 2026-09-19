@@ -1,0 +1,13 @@
+## Featured Products
+
+Question 1. 
+
+For this reflection, I did prompt Claude for help with this question to better my own understanding. Marking a product as featured in the admin interface causes the badge to appear in the storefornt through the use of a boolean process. What I mean by this is that the Product model has a boolean field (is_featured = models.BooleanField(default=False)). This first distinguishes if a product is or isn't featured. After this, the option to toggle a product as featured is provided through products/test_backoffice.py. When this is toggeled, a customer who visists the store will see when a product is listed as featured because the storefront view passes the product data to templaces in catalog.html and detail.html. The conditional check will then render the featured badge if the boolean is true.
+
+Question 2. 
+
+I verified that the featured badge and featured toggle worked by first running uv run python manage.py tailwind runserver. I first logged in as the admin account. From the catalog page, I clicked on "Back office" from the top right. In back office, I chose products and then scrolled down to Seraphine. Clicking edit, I scrolled down to the bottom and right below the is available toggle, I now see a is featured toggle option. I toggled is featured and saved this edit. I then logged out of admin and back into customer view. Logging into customer, and on the catalog page, I scrolled down and then clicked to page 2. Scrolling down to Seraphine, I see it now has a featured badge right next to its category. Cliking onto Seraphine, it also show a Featured badge right next  to where it says in stock.
+
+Question 3
+
+One challenge I did face was when wrinting my prompt for step 1. I asked Claude to make the is_featured field to product, and it ran its check and confirmed that all looked good. I logged in as admin and when I went to edit a product, I did not see the is featured option at all. I was confused since everything looked good and all the code updated, but it wasn't showing at all. I closed VS Code and reopened but the same issue. Looking back at the summary of what Claude changed, it said this: I left it out of the back-office product form and the seed data — say the word if you want either exposed. I had thought my prompt was clear to show that I would want this changed to be displayed, but it decided to not show it. I'm honestly not sure why it did that, but I did a follow up prompt and asked for it to be show, and it worked right away. I'm not sure if my prompt was unclear or if that was a default option not to show it.
