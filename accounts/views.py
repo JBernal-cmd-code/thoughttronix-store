@@ -58,7 +58,7 @@ class AddressListView(OwnAddressesMixin, ListView):
 
     template_name = "accounts/address_list.html"
     context_object_name = "addresses"
-    
+
 
 class AddressCreateView(OwnAddressesMixin, SuccessMessageMixin, CreateView):
     form_class = AddressForm

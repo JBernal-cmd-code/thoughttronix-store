@@ -4,9 +4,12 @@
 checkout and the back office agree that ``fall20`` is ``FALL20``.
 """
 
+from itertools import groupby
+
 from django import forms
 
 from products.forms import StyledModelForm
+from products.models import Category, Product
 
 from .models import Coupon, normalize_code
 
@@ -57,6 +60,7 @@ class CouponForm(StyledModelForm):
             "starts_at": "Times are UTC.",
         }
         widgets = {
+            "products": forms.CheckboxSelectMultiple(),
             "starts_at": DateTimeLocalInput(),
             "expires_at": DateTimeLocalInput(),
         }
@@ -65,6 +69,24 @@ class CouponForm(StyledModelForm):
         super().__init__(*args, **kwargs)
         for name in ("starts_at", "expires_at"):
             self.fields[name].input_formats = [DATETIME_FORMAT]
+        products = self.fields["products"]
+        products.queryset = Product.objects.select_related("category").order_by(
+            "category__name", "name"
+        )
+        products.widget.attrs["class"] = "checkbox checkbox-sm checkbox-primary"
+
+    def product_checkboxes_by_category(self) -> list[tuple[Category, list]]:
+        """The product checkboxes grouped under their category, both A–Z.
+
+        Each checkbox is a bound subwidget; its product is on
+        ``checkbox.data["value"].instance``.
+        """
+        return [
+            (category, list(checkboxes))
+            for category, checkboxes in groupby(
+                self["products"], key=lambda cb: cb.data["value"].instance.category
+            )
+        ]
 
     def clean(self):
         cleaned = super().clean()

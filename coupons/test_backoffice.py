@@ -10,6 +10,7 @@ from django.utils import timezone
 from orders.models import Order
 from orders.services import place_order
 from orders.test_checkout_form import VALID_DATA
+from products.models import Category, Product
 
 from .models import Coupon
 
@@ -172,6 +173,78 @@ def test_staff_can_edit_a_coupon(client, staff_user, coupon):
 
     coupon.refresh_from_db()
     assert coupon.percent_off == 30
+
+
+# --- The product picker ------------------------------------------------------
+
+
+def test_products_are_checkboxes_grouped_by_category(
+    client, staff_user, product, unavailable_product
+):
+    client.force_login(staff_user)
+
+    response = client.get(reverse("coupons:create"))
+
+    groups = response.context["form"].product_checkboxes_by_category()
+    assert [(category, len(boxes)) for category, boxes in groups] == [
+        (product.category, 2)
+    ]
+    page = response.content.decode()
+    assert 'type="checkbox" name="products"' in page
+    assert "Home Assistants" in page
+    assert '<select name="products"' not in page
+
+
+def test_categories_and_products_are_in_alphabetical_order(client, staff_user, product):
+    audio = Category.objects.create(name="Audio", slug="audio")
+    Product.objects.create(name="Zen Buds", slug="zen-buds", price=10, category=audio)
+    Product.objects.create(name="Aria Buds", slug="aria-buds", price=10, category=audio)
+    client.force_login(staff_user)
+
+    form = client.get(reverse("coupons:create")).context["form"]
+
+    assert [
+        (category.name, [box.data["value"].instance.name for box in boxes])
+        for category, boxes in form.product_checkboxes_by_category()
+    ] == [
+        ("Audio", ["Aria Buds", "Zen Buds"]),
+        ("Home Assistants", ["Seraphine Home Hub"]),
+    ]
+
+
+def test_unavailable_products_are_listed_with_a_badge(
+    client, staff_user, unavailable_product
+):
+    client.force_login(staff_user)
+
+    page = client.get(reverse("coupons:create")).content.decode()
+
+    assert unavailable_product.name in page
+    assert "Unavailable" in page
+
+
+def test_editing_shows_the_coupons_products_checked(client, staff_user, product):
+    coupon = Coupon.objects.create(
+        code="HUB10",
+        percent_off=10,
+        scope=Coupon.Scope.PRODUCTS,
+        expires_at=timezone.now() + timedelta(days=7),
+    )
+    coupon.products.set([product])
+    client.force_login(staff_user)
+
+    response = client.get(reverse("coupons:update", kwargs={"pk": coupon.pk}))
+
+    (box,) = response.context["form"]["products"]
+    assert "checked" in box.tag()
+
+
+def test_the_picker_has_an_empty_state(client, staff_user):
+    client.force_login(staff_user)
+
+    page = client.get(reverse("coupons:create")).content.decode()
+
+    assert "No products yet" in page
 
 
 # --- Expiring and deleting never touch past orders ---------------------------

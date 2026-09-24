@@ -1,0 +1,36 @@
+{# The coupon form's product checkboxes, grouped under their category. #}
+{# Dimmed (pure CSS) while the form's "Applies to" is set to Whole order. #}
+<fieldset class="transition-opacity group-has-[select[name=scope]_option[value=ORDER]:checked]:opacity-40">
+  <legend class="label mb-1">{{ field.label }}</legend>
+  <p class="mb-2 hidden text-xs text-info group-has-[select[name=scope]_option[value=ORDER]:checked]:block">
+    Whole-order coupons cover every product — switch “Applies to” to pick specific ones.
+  </p>
+  <div class="max-h-96 space-y-4 overflow-y-auto rounded-box border border-base-300 p-4">
+    {% for category, checkboxes in form.product_checkboxes_by_category %}
+      <div>
+        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide opacity-60">{{ category.name }}</h3>
+        <div class="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+          {% for checkbox in checkboxes %}
+            {% with product=checkbox.data.value.instance %}
+              <label class="flex cursor-pointer items-center gap-2 text-sm" for="{{ checkbox.id_for_label }}">
+                {{ checkbox.tag }}
+                <span>{{ product.name }}</span>
+                {% if not product.is_available %}
+                  <span class="badge badge-ghost badge-sm">Unavailable</span>
+                {% endif %}
+              </label>
+            {% endwith %}
+          {% endfor %}
+        </div>
+      </div>
+    {% empty %}
+      <p class="text-sm opacity-60">No products yet — add some in the catalog first.</p>
+    {% endfor %}
+  </div>
+  {% if field.help_text %}
+    <p class="mt-1 text-xs opacity-60">{{ field.help_text }}</p>
+  {% endif %}
+  {% for error in field.errors %}
+    <p class="mt-1 text-sm text-error">{{ error }}</p>
+  {% endfor %}
+</fieldset>
