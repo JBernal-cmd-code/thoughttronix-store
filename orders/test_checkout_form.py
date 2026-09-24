@@ -67,6 +67,17 @@ def test_each_rule_rejects_bad_input_on_its_own_field(field, value):
     assert len(form.errors) == 1  # the error lands beside its field, alone
 
 
+@pytest.mark.parametrize(
+    ("overrides", "expected"), [({}, False), ({"save_address": "on"}, True)]
+)
+def test_saving_the_address_is_optional(overrides, expected):
+    """The checkbox adds no requirement — it's a standalone opt-in."""
+    form = form_with(**overrides)
+
+    assert form.is_valid()
+    assert form.cleaned_data["save_address"] is expected
+
+
 def test_the_form_declares_no_imperative_validation():
     """The showcase contract: declarative rules only, per the PRD."""
     assert "clean" not in CheckoutForm.__dict__

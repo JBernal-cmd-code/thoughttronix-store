@@ -15,6 +15,7 @@ from django.views import View
 from django.views.generic import DetailView, FormView, ListView, TemplateView
 
 from accounts.mixins import StaffRequiredMixin
+from accounts.models import Address
 from products.models import Product
 
 from .forms import CheckoutForm, OrderStatusForm
@@ -92,6 +93,10 @@ class CheckoutView(LoginRequiredMixin, FormView):
     since become unavailable) is sent back to the cart page to be fixed —
     ``place_order`` enforces the same rules transactionally as the
     backstop.
+
+    Saved addresses prefill the form: the newest by default, or the one
+    named by ``?address=<pk>`` (the link the address book puts on each
+    row). Both address sections are filled from the one address.
     """
 
     template_name = "orders/checkout.html"
@@ -116,14 +121,37 @@ class CheckoutView(LoginRequiredMixin, FormView):
             return redirect("orders:cart")
         return super().dispatch(request, *args, **kwargs)
 
+    def get_initial(self):
+        """Prefill both address sections from one saved address, if any.
+
+        An ``?address=`` pk that isn't the customer's own — a stale
+        bookmark, a deleted address, someone guessing — is treated as no
+        hint at all rather than an error: the prefill is a convenience,
+        and a bad one shouldn't stand between a customer and a purchase.
+        """
+        initial = super().get_initial()
+        addresses = self.request.user.addresses
+        address = None
+        requested = self.request.GET.get("address", "")
+        if requested.isdigit():
+            address = addresses.filter(pk=requested).first()
+        if address is None:
+            address = addresses.first()
+        if address is not None:
+            initial.update(address.as_checkout_initial())
+        return initial
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["cart"] = Cart.for_user(self.request.user)
+        context["has_addresses"] = self.request.user.addresses.exists()
         return context
 
     def form_valid(self, form):
         cart = Cart.for_user(self.request.user)
         order = place_order(cart, self.request.user, form.cleaned_data)
+        if form.cleaned_data["save_address"]:
+            Address.objects.create_from_checkout(self.request.user, form.cleaned_data)
         messages.success(self.request, f"Order {order.number} placed. Thank you!")
         return redirect(reverse("orders:confirmation", kwargs={"pk": order.pk}))
 

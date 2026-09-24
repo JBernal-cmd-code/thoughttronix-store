@@ -21,6 +21,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
+from accounts.models import Address
 from orders.models import Cart, Order, OrderItem
 from products.models import Category, Product, Tag
 
@@ -506,6 +507,7 @@ class Command(BaseCommand):
         tags = self._create_tags()
         self._create_catalog(tags)
         self._create_users()
+        self._create_addresses()
         self._create_customer_cart()
         self._create_orders()
 
@@ -516,6 +518,7 @@ class Command(BaseCommand):
                 f"{Product.objects.count()} products, "
                 f"{get_user_model().objects.count()} users, "
                 f"{Order.objects.count()} orders, "
+                f"{Address.objects.count()} saved addresses, "
                 f"and a live cart for 'customer'."
             )
         )
@@ -523,6 +526,7 @@ class Command(BaseCommand):
     def _wipe(self):
         """Remove everything the seed owns; the rebuild starts from zero."""
         Order.objects.all().delete()
+        Address.objects.all().delete()
         Cart.objects.all().delete()
         Product.objects.all().delete()
         Tag.objects.all().delete()
@@ -579,6 +583,26 @@ class Command(BaseCommand):
             )
             user.set_unusable_password()
             user.save()
+
+    def _create_addresses(self):
+        """Two saved addresses for 'customer' — the one loggable customer.
+
+        Only 'customer' can sign in, and the address book is customer-facing
+        only, so nobody else's saved addresses would ever be visible. Two
+        rather than one so the list, the "Use at checkout" link, and the
+        newest-prefills-checkout default are all demonstrable.
+        """
+        customer = get_user_model().objects.get(username="customer")
+        name = f"{customer.first_name} {customer.last_name}"
+        for street, city, state, zip_code in SEED_ADDRESSES[:2]:
+            Address.objects.create(
+                user=customer,
+                full_name=name,
+                street=street,
+                city=city,
+                state=state,
+                zip_code=zip_code,
+            )
 
     def _create_customer_cart(self):
         customer = get_user_model().objects.get(username="customer")

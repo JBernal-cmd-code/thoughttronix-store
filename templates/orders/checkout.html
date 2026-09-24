@@ -24,10 +24,20 @@
       <section class="card bg-base-100 shadow-md">
         <div class="card-body">
           <h2 class="card-title">Shipping address</h2>
+          {% if has_addresses %}
+            <p class="text-sm opacity-70">
+              Shipping somewhere else?
+              <a href="{% url 'accounts:addresses' %}" class="link link-primary">
+                Choose from your addresses</a>.
+            </p>
+          {% endif %}
           <div class="grid gap-4 sm:grid-cols-2">
             {% for field in form.shipping_fields %}
               {% include "orders/partials/_field.html" %}
             {% endfor %}
+          </div>
+          <div class="mt-2">
+            {% include "orders/partials/_field.html" with field=form.save_address %}
           </div>
         </div>
       </section>
