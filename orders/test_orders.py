@@ -9,6 +9,8 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 
+from accounts.models import Address
+
 from .models import CartItem, Order
 from .services import place_order
 from .test_checkout_form import VALID_DATA
@@ -136,6 +138,144 @@ def test_confirmation_shows_the_order_number(client, customer, order):
 
     assert response.status_code == HTTPStatus.OK
     assert order.number in response.content.decode()
+
+
+# --- Saved addresses at checkout ---------------------------------------------
+
+
+def test_checkout_prefills_from_the_newest_saved_address(
+    client, customer, cart_item, address
+):
+    newer = Address.objects.create(
+        user=customer,
+        full_name="Casey Monroe",
+        street="1500 Dendrite Drive",
+        city="Albuquerque",
+        state="NM",
+        zip_code="87102",
+    )
+    client.force_login(customer)
+
+    response = client.get(reverse("orders:checkout"))
+
+    form = response.context["form"]
+    assert form.initial["shipping_street"] == newer.street
+    assert form.initial["billing_street"] == newer.street
+    assert form.initial["billing_zip"] == newer.zip_code
+
+
+def test_checkout_prefills_the_address_named_in_the_query(
+    client, customer, cart_item, address
+):
+    Address.objects.create(
+        user=customer,
+        full_name="Casey Monroe",
+        street="1500 Dendrite Drive",
+        city="Albuquerque",
+        state="NM",
+        zip_code="87102",
+    )
+    client.force_login(customer)
+
+    response = client.get(f"{reverse('orders:checkout')}?address={address.pk}")
+
+    form = response.context["form"]
+    assert form.initial["shipping_street"] == "214 Synapse Street"
+
+
+@pytest.mark.parametrize("requested", ["999", "not-a-number", ""])
+def test_an_unusable_address_query_falls_back_to_the_newest(
+    client, customer, cart_item, address, requested
+):
+    """A stale bookmark or someone else's pk is a missing hint, not an error."""
+    client.force_login(customer)
+
+    response = client.get(f"{reverse('orders:checkout')}?address={requested}")
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.context["form"].initial["shipping_street"] == address.street
+
+
+def test_another_customers_address_cannot_be_used_as_a_prefill(
+    client, customer, cart_item, address, other_customer
+):
+    theirs = Address.objects.create(
+        user=other_customer,
+        full_name="Dana Cole",
+        street="9 Axon Avenue",
+        city="Norman",
+        state="OK",
+        zip_code="73019",
+    )
+    client.force_login(customer)
+
+    response = client.get(f"{reverse('orders:checkout')}?address={theirs.pk}")
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.context["form"].initial["shipping_street"] == address.street
+
+
+def test_checkout_without_saved_addresses_prefills_nothing(client, customer, cart_item):
+    client.force_login(customer)
+
+    response = client.get(reverse("orders:checkout"))
+
+    assert response.status_code == HTTPStatus.OK
+    assert "shipping_street" not in response.context["form"].initial
+
+
+def test_checking_the_box_saves_the_shipping_address(client, customer, cart_item):
+    client.force_login(customer)
+
+    client.post(reverse("orders:checkout"), {**VALID_DATA, "save_address": "on"})
+
+    saved = customer.addresses.get()
+    assert saved.full_name == "Casey Monroe"
+    assert saved.street == "12 Cortex Lane"
+    assert saved.line2 == "Unit 7"
+    assert saved.city == "Canyon"
+    assert saved.state == "TX"
+    assert saved.zip_code == "79015"
+
+
+def test_leaving_the_box_unchecked_saves_nothing(client, customer, cart_item):
+    client.force_login(customer)
+
+    client.post(reverse("orders:checkout"), VALID_DATA)
+
+    assert Order.objects.exists()
+    assert not Address.objects.exists()
+
+
+def test_the_saved_address_is_the_shipping_one_not_the_billing_one(
+    client, customer, cart_item
+):
+    data = {
+        **VALID_DATA,
+        "billing_street": "9 Axon Avenue",
+        "billing_city": "Norman",
+        "billing_state": "OK",
+        "billing_zip": "73019",
+        "save_address": "on",
+    }
+    client.force_login(customer)
+
+    client.post(reverse("orders:checkout"), data)
+
+    assert customer.addresses.get().street == "12 Cortex Lane"
+
+
+def test_checkout_signposts_the_address_book_only_when_one_exists(
+    client, customer, cart_item, address
+):
+    client.force_login(customer)
+    with_saved = client.get(reverse("orders:checkout")).content.decode()
+
+    address.delete()
+    without_saved = client.get(reverse("orders:checkout")).content.decode()
+
+    assert "Choose from your addresses" in with_saved
+    assert "Choose from your addresses" not in without_saved
 
 
 # --- Order history and detail ------------------------------------------------

@@ -19,6 +19,11 @@ A server-rendered Django 6 storefront and back office. The PRD (`prd/core-platfo
 - `accounts/` — custom user model (`accounts.User`, `AbstractUser` + nullable
   `job_title`). Roles are Django's own vocabulary: customers are plain users,
   employees are `is_staff`, the admin is `is_superuser`. No role field, no Groups.
+  Also owns `Address` (the customer address book, untyped — shipping vs billing
+  is a fact about a checkout, not about an address) and `accounts/constants.py`,
+  the home of `US_STATES` and `zip_validator`, which `orders` imports. The app
+  dependency graph runs one way: everything imports from `accounts`, `accounts`
+  imports from no local app.
 - `products/` — catalog (`Category`, `Product`, `Tag`), its back-office CRUD,
   and the `seed` command
 - `orders/` — cart, checkout, orders, and back-office order management
