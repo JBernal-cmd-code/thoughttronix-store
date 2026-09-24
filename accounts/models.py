@@ -64,9 +64,8 @@ class Address(models.Model):
     objects = AddressQuerySet.as_manager()
 
     class Meta:
-        # Newest first: the most recently saved address is the one
-        # checkout prefills, standing in for an explicit default flag.
-        ordering = ["-pk"]
+
+        ordering = ["full_name"]
         verbose_name_plural = "addresses"
 
     def __str__(self):
