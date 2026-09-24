@@ -4,7 +4,9 @@ The three HTMX interactions of the core live here: add-to-cart, quantity
 change, and line removal. Each renders a partial (never ``base.html``);
 the responses carry the navbar badge as an out-of-band swap via the
 ``oob_badge`` context flag. Checkout is conventional full-page work:
-validate the form, hand everything to ``place_order``.
+validate the form, hand everything to ``place_order``. The one HTMX
+touch at checkout is the coupon preview: Apply re-renders the order
+summary with the discount, saving nothing.
 """
 
 from django.contrib import messages
@@ -16,6 +18,7 @@ from django.views.generic import DetailView, FormView, ListView, TemplateView
 
 from accounts.mixins import StaffRequiredMixin
 from accounts.models import Address
+from coupons.models import Coupon, CouponError, normalize_code
 from products.models import Product
 
 from .forms import CheckoutForm, OrderStatusForm
@@ -86,6 +89,43 @@ class RemoveCartItemView(CartItemActionView):
         item.delete()
 
 
+def quote_with_code(cart, code):
+    """The cart priced with ``code``, plus the reason if the code won't apply.
+
+    A bad code prices the cart without a discount rather than failing:
+    the summary always shows what checkout would charge right now.
+    """
+    if not code:
+        return cart.quote(), ""
+    try:
+        return cart.quote(Coupon.objects.get_by_code(code)), ""
+    except CouponError as error:
+        return cart.quote(), str(error)
+
+
+class ApplyCouponView(LoginRequiredMixin, View):
+    """HTMX: preview a coupon at checkout — nothing is saved.
+
+    Re-renders the order summary (with the coupon box and its message)
+    and swaps the Place order total out-of-band. ``place_order`` checks
+    the code again when the order is actually placed.
+    """
+
+    def post(self, request):
+        code = normalize_code(request.POST.get("coupon_code", ""))
+        quote, error = quote_with_code(Cart.for_user(request.user), code)
+        return render(
+            request,
+            "orders/partials/_order_summary.html",
+            {
+                "quote": quote,
+                "coupon_code": code,
+                "coupon_error": error,
+                "oob_total": True,
+            },
+        )
+
+
 class CheckoutView(LoginRequiredMixin, FormView):
     """The single checkout page: validate the form, hand off to the service.
 
@@ -142,17 +182,43 @@ class CheckoutView(LoginRequiredMixin, FormView):
         return initial
 
     def get_context_data(self, **kwargs):
+        """The summary is priced with whatever code the form holds.
+
+        On a re-render the typed code stays applied (or explained), so
+        the summary still matches what Place order would charge. An
+        error already on the field — ``place_order`` refusing the code —
+        is the one shown.
+        """
         context = super().get_context_data(**kwargs)
-        context["cart"] = Cart.for_user(self.request.user)
+        form = context["form"]
+        code = normalize_code(form["coupon_code"].value() or "")
+        quote, error = quote_with_code(Cart.for_user(self.request.user), code)
+        field_errors = form.errors.get("coupon_code")
+        context["quote"] = quote
+        context["coupon_code"] = code
+        context["coupon_error"] = field_errors[0] if field_errors else error
         context["has_addresses"] = self.request.user.addresses.exists()
         return context
 
     def form_valid(self, form):
+        """Place the order; a code that won't apply blocks it, input kept."""
         cart = Cart.for_user(self.request.user)
-        order = place_order(cart, self.request.user, form.cleaned_data)
+        try:
+            order = place_order(
+                cart,
+                self.request.user,
+                form.cleaned_data,
+                coupon_code=form.cleaned_data["coupon_code"],
+            )
+        except CouponError as error:
+            form.add_error("coupon_code", str(error))
+            return self.form_invalid(form)
         if form.cleaned_data["save_address"]:
             Address.objects.create_from_checkout(self.request.user, form.cleaned_data)
-        messages.success(self.request, f"Order {order.number} placed. Thank you!")
+        message = f"Order {order.number} placed. Thank you!"
+        if order.discount:
+            message += f" {order.coupon_code} saved you ${order.discount:,}."
+        messages.success(self.request, message)
         return redirect(reverse("orders:confirmation", kwargs={"pk": order.pk}))
 
 

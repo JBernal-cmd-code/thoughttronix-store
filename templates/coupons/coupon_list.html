@@ -1,0 +1,84 @@
+{% extends "backoffice/base.html" %}
+
+{% block title %}Coupons — Back office{% endblock %}
+
+{% block backoffice %}
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-4">
+    <h2 class="text-xl font-semibold">
+      {{ coupons|length }} coupon{{ coupons|length|pluralize }}
+    </h2>
+    <a href="{% url 'coupons:create' %}" class="btn btn-primary btn-sm">+ Add coupon</a>
+  </div>
+
+  {% if coupons %}
+    <div class="overflow-x-auto rounded-box bg-base-100 shadow-md">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Discount</th>
+            <th>Runs</th>
+            <th>Status</th>
+            <th>Uses</th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for coupon in coupons %}
+            {% with status=coupon.status %}
+              <tr>
+                <td>
+                  <a href="{% url 'coupons:update' coupon.pk %}"
+                     class="link-hover font-mono font-semibold">{{ coupon.code }}</a>
+                </td>
+                <td>
+                  <span class="font-semibold">{{ coupon.percent_off }}% off</span>
+                  {% if coupon.scope == "PRODUCTS" %}
+                    <p class="text-xs opacity-60">
+                      {% for product in coupon.products.all %}{{ product.name }}{% if not forloop.last %}, {% endif %}{% empty %}No products left{% endfor %}
+                    </p>
+                  {% else %}
+                    <p class="text-xs opacity-60">Whole order</p>
+                  {% endif %}
+                </td>
+                <td class="text-sm whitespace-nowrap">
+                  {{ coupon.starts_at|date:"M j, Y" }} – {{ coupon.expires_at|date:"M j, Y" }}
+                </td>
+                <td>
+                  {% if status == "ACTIVE" %}
+                    <span class="badge badge-success badge-outline">{{ status.label }}</span>
+                  {% elif status == "SCHEDULED" %}
+                    <span class="badge badge-info badge-outline">{{ status.label }}</span>
+                  {% else %}
+                    <span class="badge badge-ghost">{{ status.label }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ coupon.use_count }}</td>
+                <td class="text-right whitespace-nowrap">
+                  <a href="{% url 'coupons:update' coupon.pk %}" class="btn btn-ghost btn-xs">Edit</a>
+                  {% if status == "ACTIVE" %}
+                    <form method="post" action="{% url 'coupons:expire' coupon.pk %}" class="inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-ghost btn-xs text-warning">Expire now</button>
+                    </form>
+                  {% endif %}
+                  <a href="{% url 'coupons:delete' coupon.pk %}"
+                     class="btn btn-ghost btn-xs text-error">Delete</a>
+                </td>
+              </tr>
+            {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="py-16 text-center">
+      <p class="text-5xl">🎟️</p>
+      <p class="mt-4 text-xl font-semibold">No coupons yet</p>
+      <p class="mt-2 opacity-70">Every season deserves a sale. This one is still waiting.</p>
+      <a href="{% url 'coupons:create' %}" class="btn btn-primary btn-sm mt-6">
+        Create the first coupon
+      </a>
+    </div>
+  {% endif %}
+{% endblock %}

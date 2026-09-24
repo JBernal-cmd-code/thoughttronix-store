@@ -26,7 +26,13 @@ A server-rendered Django 6 storefront and back office. The PRD (`prd/core-platfo
   imports from no local app.
 - `products/` — catalog (`Category`, `Product`, `Tag`), its back-office CRUD,
   and the `seed` command
-- `orders/` — cart, checkout, orders, and back-office order management
+- `coupons/` — seasonal percent-off coupons (`Coupon`: order-wide or
+  product-scoped; status read off `starts_at`/`expires_at`, never stored),
+  their back-office CRUD + "Expire now", and `CouponError`. Imports from
+  `products`; `orders` imports from it, never the reverse.
+- `orders/` — cart, checkout (with the HTMX coupon preview), orders, and
+  back-office order management. Orders snapshot any coupon (code, percent,
+  per-line `discount`); `Order.total` is what was paid, after discount.
 - `dashboard/` — the staff analytics dashboard
 - `PROMPTS.md` — the AI-usage log; append entries, never rewrite history
 - `templates/` — project-level templates (`base.html`); app templates live in
@@ -40,8 +46,8 @@ Logic lives in models and managers; cross-model workflows get a service
 module; views stay thin.
 
 Exactly two deliberate deep modules, docstrings and type hints on every
-public function: `orders/services.py` (`place_order`, with its dormant
-`coupon_code` seam) and `dashboard/queries.py` (the dashboard's
+public function: `orders/services.py` (`place_order`, which applies
+`coupon_code` and raises `CouponError` for a code that won't apply) and `dashboard/queries.py` (the dashboard's
 aggregations).
 
 Idiomatic Django throughout: class-based views, model methods, custom

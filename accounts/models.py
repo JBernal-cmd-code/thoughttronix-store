@@ -68,7 +68,7 @@ class Address(models.Model):
 
     class Meta:
 
-        ordering = ["full_name"]
+        ordering = ["-id"]
         verbose_name_plural = "addresses"
 
     def __str__(self):

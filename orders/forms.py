@@ -11,6 +11,7 @@ from django import forms
 from django.core.validators import RegexValidator
 
 from accounts.constants import US_STATES, zip_validator
+from coupons.forms import CouponCodeField
 
 from .models import Order
 from .validators import validate_card_number, validate_expiry
@@ -59,6 +60,10 @@ class CheckoutForm(forms.Form):
     save_address = forms.BooleanField(
         label="Save this shipping address to my account", required=False
     )
+
+    # Optional; the field only normalizes the code. Whether it applies
+    # depends on the cart and the clock, so ``place_order`` decides.
+    coupon_code = CouponCodeField(label="Coupon code", required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
