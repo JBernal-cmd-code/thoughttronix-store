@@ -1,3 +1,37 @@
+## Product Images
+
+Question 1. 
+
+For question 7 of grill me, Claude asked what to do with the fourt images that had text baked into them. Claude recommened keeping placeholders on those products until Marketing sent versions without text. I disagreed with this because marketing had mentioned that placeholders tested poorly with customers. I chose to use all four images now and swap them later if marketing chose to later send images without text. The only thing it affected is that Claude uploaded and used all images provided.
+
+
+Question 2.1  
+
+My ImageField line was listed under products/models.py. The line is image = models.ImageField(upload_to=product_image_path, blank=True), on line 78. In my code, the upload_to value basically decides where an uploaded image is saved to and what name its given. It points to a function called product_image_path that saves each uploaded image in the media/products/ folder with a unique name based on the product's slug.
+ 
+
+Question 2.2
+
+My form to upload a product image is in templates/products/manage_product_form.html, on line 13. The line is form method="post" enctype="multipart/form-data" class="mt-2 space-y-4. The reason enctype is needed for a file upload is becasue without it, a form would send everything as one line of text. Using enctype helps the browser split the form into separate parts.
+
+
+
+Question 3.
+
+1 Path on disk:
+C:\Users\jesus\cidm3312\thoughttronix-store\media\products\assist-headband-4500a4e3.webp
+Determined by MEDIA_ROOT in config/settings.py (line 146), plus upload_to=product_image_path on the image field in products/models.py (line 78).
+
+2 Value in the database:
+products/assist-headband-4500a4e3.webp
+Determined by the image ImageField (and its upload_to) in products/models.py (line 78).
+
+3 URL the browser requests:
+http://127.0.0.1:8000/media/products/assist-headband-4500a4e3.webp
+Determined by MEDIA_URL in config/settings.py (line 144), plus the database value. The part of the code that makes media url work is line 29, urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT), in config/urls.py. This line works in Django by applying that any URL starting with media should be handled with the matching file from the media folder. 
+
+
+
 ## Discount Coupons
 
 Quesiton 1. 
