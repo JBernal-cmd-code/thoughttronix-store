@@ -28,6 +28,94 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-03 — Product images: design interview and handoff (no code yet)
+
+### Prompts
+1. `/grill-me` I want to add product images to the ThoughtTronix catalog.
+   Right now every product shows a placeholder. Marketing gave us a set of
+   product images, which are in the product-images folder at the root of
+   this repo. That folder is just a temporary holding spot, not Django's
+   media directory. Every product has to show either its uploaded image or
+   the existing placeholder, with no broken images. Images should look
+   consistent across the catalog and pages need to stay fast. Employees
+   will upload images through the back office, and if they upload a file
+   the site can't use, it should be rejected with a plain-language
+   explanation instead of being accepted and lost.
+2. (Grill-me answer — how images reach products) Option 1. I want seed to
+   always produce the full catalog with images, and running them through
+   the same upload path tests the employee code too. Use the No Text
+   version of SyncRest so it matches the other images.
+3. (Grill-me answer — frame shape) Option 2 is fine.
+4. (Grill-me answer — when to process) Option 2 is fine.
+5. (Grill-me answer — images that are too small) Option 1 is good.
+6. (Grill-me answer — missing files) Option 2 is good.
+7. (Grill-me answer — old files) Option 2 is good.
+8. (Grill-me answer — text-baked images) Option 3. I want all of
+   Marketing's images showing, since placeholders tested poorly.
+9. (Grill-me answer — SoulSear mapping) Option 1 is good.
+10. (Grill-me answer — Calm Collar mismatch) Option 1 is good.
+11. (Grill-me answer — where images appear) Options 2 is good.
+12. (Grill-me answer — seed source format) Option 2 is good.
+13. (Grill-me answer — where the processing code lives) Option 1 is good.
+14. `/handoff` the next session implements the design we just agreed.
+15. Append a session log to PROMPTS.md at the repo root, under today's
+    date, newest entry at the top. Record every prompt I gave you this
+    session, in order, including any corrections. End the entry with a
+    short summary: the outcome, any places where I deviated from a
+    recommended answer or asked follow-up questions, and anything that
+    went sideways.
+
+### Summary
+- **Outcome:** This was a design-only session; no application code
+  changed. The agent first explored the code and the image folder. It
+  found:
+  - no media setup, no `ImageField`, and no Pillow
+  - 4:3 placeholder SVGs
+  - 13 roughly 2 MB PNGs, mostly 4:5 portrait, covering 12 of the 36
+    products
+  - a destructive `seed`
+
+  Thirteen questions settled the design:
+  - images are seed assets processed through the employee upload path
+  - a 4:5 frame
+  - a single 800×1000 WebP made once at upload
+  - JPEG/PNG/WebP only, at most 10 MB, and at least 800×1000 after
+    cropping
+  - an existence-checked `Product.image_url` with a placeholder fallback
+  - files deleted after commit
+  - thumbnails in the back-office product list
+  - quality-90 JPEG seed sources in `products/seed_images/`
+  - one `prepare_product_image` function in a new `products/images.py`,
+    shared by the back-office form, the Django admin, and `seed`
+
+  The full design and the image-to-product mapping are in `HANDOFF.md`
+  (new, uncommitted). No `plans/` file was written. `product-images/` is
+  still untracked; the design deletes it once the seed sources are
+  converted.
+- **Deviations:**
+  - Q7 (the four images with marketing text baked in): the user chose
+    Option 3, ship now and swap later, over the recommended Option 2,
+    placeholders until Marketing sends no-text versions. Their reason was
+    that placeholders tested poorly.
+  - Every other answer took the recommendation.
+  - In prompt 2 the user said the No Text SyncRest "matches the other
+    images." The agent pointed out that several other images also have
+    baked-in text, which led to Q7.
+  - Prompt 3 ("Option 2 is fine") was taken as also accepting
+    center-cropping, which Q2 had asked about separately.
+  - The user asked no follow-up questions.
+  - The agent's closing question, write `plans/product-images.md` or start
+    implementing, went unanswered; the user ran `/handoff` instead.
+- **Sideways:**
+  - Nothing failed, but the interview grew three questions the original
+    brief didn't anticipate, each found by inspecting files mid-interview.
+    The SoulSear image fit three products. The Calm Collar image shows an
+    adult while the copy says "children ages four and up". `Product` is
+    registered in the Django admin, which would have let uploads skip
+    validation.
+  - Marketing follow-ups are listed in `HANDOFF.md`.
+  - The session started with `/clear`.
+
 ## 2026-09-24 — Coupon form: products as category-grouped checkboxes; accounts import cleanup
 
 ### Prompts
@@ -127,4 +215,3 @@ Each entry has this shape:
 - **Sideways:** Nothing. Each step was migrated, tested, and linted before
   reporting; no wrong turns.
 
-Note from me. I didn't realize I had to add the whole log list, and by the time I was working on the review, I cleared since Claude was in the dumb zone after my initial grill me section.

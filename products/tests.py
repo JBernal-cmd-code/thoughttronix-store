@@ -239,6 +239,16 @@ def test_seed_builds_the_demo_world(db):
     assert not mark_one.is_available
     assert mark_one.category.name == "Defense"
 
+    # Marketing's 12 images, processed like any upload; the rest keep
+    # their category placeholder.
+    with_images = Product.objects.exclude(image="")
+    assert with_images.count() == 12
+    assert not mark_one.image
+    for product in with_images:
+        assert product.image.name.endswith(".webp")
+        assert product.image.storage.exists(product.image.name)
+        assert product.image.width == 800 and product.image.height == 1000
+
     # 40–60 orders across the trailing six months, per the PRD.
     assert Order.objects.count() == 52
     statuses = set(Order.objects.values_list("status", flat=True))

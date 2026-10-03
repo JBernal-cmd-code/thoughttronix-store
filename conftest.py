@@ -17,6 +17,14 @@ from orders.models import Cart, CartItem
 from products.models import Category, Product, Tag
 
 
+@pytest.fixture(autouse=True)
+def media_root(settings, tmp_path):
+    """Every test stores uploads in its own temporary directory, never in
+    the project's media/."""
+    settings.MEDIA_ROOT = tmp_path / "media"
+    return settings.MEDIA_ROOT
+
+
 @pytest.fixture
 def customer(db):
     return get_user_model().objects.create_user(

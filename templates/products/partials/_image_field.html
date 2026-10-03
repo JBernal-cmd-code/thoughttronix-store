@@ -1,0 +1,31 @@
+{# The product image field: what the product shows now, a file picker to #}
+{# replace it, and a Remove checkbox that reverts to the category placeholder. #}
+{# The checkbox name is ClearableFileInput's: "<field name>-clear". #}
+<div>
+  <label class="label mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
+  <div class="flex items-start gap-4">
+    {% if form.instance.pk %}
+      <img src="{{ form.instance.image_url }}" alt="{{ form.instance.name }}"
+           width="800" height="1000"
+           class="aspect-[4/5] w-24 shrink-0 rounded-box object-cover shadow-md" />
+    {% endif %}
+    <div class="min-w-0 flex-1 space-y-2">
+      {{ field }}
+      {% if form.initial.image %}
+        <label class="label cursor-pointer justify-start gap-3" for="{{ field.html_name }}-clear_id">
+          <input type="checkbox" name="{{ field.html_name }}-clear" id="{{ field.html_name }}-clear_id"
+                 class="checkbox checkbox-sm" />
+          <span>Remove image (show the category placeholder)</span>
+        </label>
+      {% else %}
+        <p class="text-xs opacity-60">No image yet — the category placeholder is showing.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% if field.help_text %}
+    <p class="mt-1 text-xs opacity-60">{{ field.help_text }}</p>
+  {% endif %}
+  {% for error in field.errors %}
+    <p class="mt-1 text-sm text-error">{{ error }}</p>
+  {% endfor %}
+</div>

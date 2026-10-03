@@ -40,4 +40,18 @@
 ## Static assets
 
 - HTMX is vendored at `assets/js/htmx.min.js`, not loaded from a CDN.
-- Category placeholder images live in `assets/images/placeholders/`.
+- Category placeholder images live in `assets/images/placeholders/` —
+  400×500 SVGs, the same 4:5 frame as product images.
+
+## Product images
+
+- Every product image is 4:5 portrait. Render it with
+  `src="{{ product.image_url }}"` (upload or placeholder, never broken),
+  `alt="{{ product.name }}"`, `width="800" height="1000"`, and
+  `class="aspect-[4/5] … object-cover"` plus a width class.
+- Add `loading="lazy"` wherever many appear at once (the catalog grid, the
+  back-office list); not on the detail page.
+- Shown on the catalog, the detail page, the back-office product list and
+  form. Not yet in the cart, order history, or receipts.
+- Forms that upload need `enctype="multipart/form-data"`. The product
+  form's image field renders through `products/partials/_image_field.html`.

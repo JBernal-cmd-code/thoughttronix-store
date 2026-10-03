@@ -9,14 +9,24 @@ features.
 Idiomatic Django throughout: class-based views, model methods, custom
 managers/querysets, forms own their validation.
 
-Exactly two deliberate deep modules, docstrings and type hints on every
+Exactly three deliberate deep modules, docstrings and type hints on every
 public function:
 
 - `orders/services.py` — `place_order`, which applies `coupon_code` and
   raises `CouponError` for a code that won't apply.
 - `dashboard/queries.py` — the dashboard's aggregations.
+- `products/images.py` — `prepare_product_image`, the one door every
+  product image comes through: it validates an upload, center-crops it to
+  4:5, resizes it to 800×1000, and encodes WebP, or raises
+  `ValidationError` with a plain-language reason. Callers:
+  `ProductForm.clean_image`, `ProductAdmin` (via `form = ProductForm`),
+  and `seed`.
 
 Settings read from `.env` via environs, every one with a working default.
+
+Uploaded media lives in `MEDIA_ROOT` (`media/`, gitignored), served by
+`config/urls.py` only when `DEBUG` is on. Known gap: with `DEBUG=False`
+nothing serves media (or static files — there's no whitenoise yet).
 
 ## App dependencies
 
@@ -39,6 +49,19 @@ Settings read from `.env` via environs, every one with a working default.
 **products**
 
 - `Category`, `Product`, `Tag`.
+- `Product.image` is optional and always a processed 800×1000 WebP; nothing
+  is stored without going through `prepare_product_image`. Each upload gets
+  a fresh name (`products/<slug>-<random>.webp`) so browsers never show a
+  cached old image.
+- Templates use `Product.image_url`, never the field: it returns the upload
+  only if the file exists in storage, else the category placeholder
+  (`Category.placeholder_image`), so no image is ever broken.
+- A replaced, cleared, or deleted product's old file is deleted on commit
+  (`transaction.on_commit`). Deletion uses `post_delete`, which also fires
+  for queryset deletes such as `seed`'s wipe.
+- `products/seed_images/<slug>.jpg` — Marketing's images at full
+  resolution; `seed` processes them like any upload. Products without one
+  keep their placeholder.
 
 **coupons**
 

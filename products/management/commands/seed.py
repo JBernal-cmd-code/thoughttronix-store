@@ -14,8 +14,10 @@ Demo logins (documented in the README):
 import random
 from datetime import timedelta
 from decimal import Decimal
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.core.files import File
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -24,7 +26,12 @@ from django.utils.text import slugify
 from accounts.models import Address
 from coupons.models import Coupon, CouponError
 from orders.models import Cart, Order, OrderItem
+from products.images import prepare_product_image
 from products.models import Category, Product, Tag
+
+# Marketing's product images, full resolution, named <product slug>.jpg.
+# Products without one show their category placeholder.
+SEED_IMAGES_DIR = Path(__file__).resolve().parents[2] / "seed_images"
 
 TAGS = [
     "always listening",
@@ -542,7 +549,8 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"Seeded {Category.objects.count()} categories, "
                 f"{Tag.objects.count()} tags, "
-                f"{Product.objects.count()} products, "
+                f"{Product.objects.count()} products "
+                f"({Product.objects.exclude(image='').count()} with an image), "
                 f"{get_user_model().objects.count()} users, "
                 f"{Order.objects.count()} orders "
                 f"({Order.objects.exclude(coupon=None).count()} with a coupon), "
@@ -578,16 +586,28 @@ class Command(BaseCommand):
                 name=category_name, slug=slugify(category_name)
             )
             for name, price, tagline, description, tag_names, is_available in entries:
+                slug = slugify(name)
                 product = Product.objects.create(
                     name=name,
-                    slug=slugify(name),
+                    slug=slug,
                     price=price,
                     tagline=tagline,
                     description=description,
                     is_available=is_available,
                     category=category,
+                    image=self._seed_image(slug),
                 )
                 product.tags.set(tags[tag_name] for tag_name in tag_names)
+
+    @staticmethod
+    def _seed_image(slug):
+        """The product's seed image, processed exactly as a staff upload
+        is, or "" (the placeholder) if Marketing hasn't supplied one."""
+        path = SEED_IMAGES_DIR / f"{slug}.jpg"
+        if not path.exists():
+            return ""
+        with path.open("rb") as source:
+            return prepare_product_image(File(source, name=path.name))
 
     def _create_users(self):
         User = get_user_model()
