@@ -28,6 +28,77 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-03 — Product images: implemented from HANDOFF.md
+
+### Prompts
+1. `@HANDOFF.md` Implement this feature
+2. How can I manually verify this works in the browser?
+3. Append a session log to PROMPTS.md at the repo root, under today's
+   date, newest entry at the top. Record every prompt I gave you this
+   session, in order, including any corrections. End the entry with a
+   short summary: the outcome, any places where I deviated from a
+   recommended answer or asked follow-up questions, and anything that
+   went sideways.
+
+### Summary
+- **Outcome:** The design in `HANDOFF.md` was implemented in full;
+  nothing is committed.
+  - `products/images.py` holds `prepare_product_image`. It enforces
+    10 MB, real decoding, JPEG/PNG/WebP only (with a HEIC export hint),
+    and at least 800×1000 after the crop. It applies EXIF orientation,
+    keeps transparency, center-crops to 4:5, and outputs an 800×1000 WebP.
+  - `Product.image` (migration `0004`) has unique
+    `products/<slug>-<random>.webp` names. `Product.image_url` checks the
+    file exists before using it. Old files are deleted on commit when an
+    image is replaced, cleared, or deleted, including `seed`'s bulk wipe.
+  - The form gets the image through a plain `FileField` (so Django's
+    generic image error never pre-empts ours), a picker-only widget, and
+    `_image_field.html` with a preview and a Remove checkbox.
+    `ProductAdmin` uses `ProductForm` and keeps the admin's own widget.
+  - `MEDIA_*` settings, serving only when `DEBUG` is on, `media/`
+    gitignored, and Pillow added.
+  - Catalog, detail, back-office list thumbnails, and the form use 4:5
+    images. All 7 placeholder SVGs were redrawn at 400×500.
+  - 12 seed JPEGs (3.4 MB total) are in `products/seed_images/`; `seed`
+    attaches them. `product-images/` was deleted as agreed, after checking
+    all 12 JPEGs decode.
+  - New `products/test_images.py`, a seed assertion for 12 images, and an
+    autouse `media_root` fixture. Updated `docs/ARCHITECTURE.md`,
+    `FRONTEND.md`, `TESTING.md`, and `CLAUDE.md`.
+  - The suite is green (330 passed), ruff is clean, and every flow was
+    checked with `curl` against the running dev server.
+- **Deviations:**
+  - No recommendation was overridden.
+  - The user asked one follow-up (prompt 2): how to verify by hand in the
+    browser. The agent gave a step-by-step checklist.
+  - The agent's own departures from `HANDOFF.md`:
+    - The temporary `MEDIA_ROOT` fixture is autouse for every test, not
+      just uploading ones.
+    - The admin keeps its own Clear widget.
+    - The suggested `code-review` and `simplify` passes were not run.
+  - The previous entry said 36 products; the seeded catalog has 34
+    (12 with images, 22 on placeholders).
+- **Sideways:**
+  - The first image-conversion command hung on a stray `cat >` waiting for
+    stdin. It was stopped and rerun as a script.
+  - Regenerating the SVGs crashed on Windows' cp1252 console after
+    writing one file. It was rerun with UTF-8 output and a pattern that
+    also matched the already-converted file.
+  - Ruff's DJ012 flagged the method order in `Product`; it was fixed.
+  - `tailwind build` reported "up to date" and skipped the new
+    `aspect-[4/5]` class. A `--force` rebuild fixed it.
+  - To time the seed tests before the change, the agent ran
+    `git stash` / `stash pop` on the working tree. The comparison was
+    invalid (the untracked migration stayed behind and every test
+    errored), but the tree was restored intact. That was a riskier move
+    than the question deserved.
+  - The `curl` smoke script needed several fixes: wrong back-office path,
+    the `manage.py shell` banner, a `sed` edit that split a line, and
+    `sh`'s `echo` mangling large HTML. One false "0 thumbnails" came from
+    the agent's own over-broad `sed`; a direct fetch showed 34.
+  - Adding images made the suite slower: the seed tests take about 12 s
+    of a roughly 72 s run.
+
 ## 2026-10-03 — Product images: design interview and handoff (no code yet)
 
 ### Prompts
