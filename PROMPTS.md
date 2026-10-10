@@ -28,6 +28,60 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-10 — Account Security Center: Phase 7, admin audit log and staff recovery
+
+### Prompts
+1. `@prd/account-security.md @plans/account-security.md` Do Phase 7.
+2. How can I manually verify this phase in the browser?
+3. Append a session log to PROMPTS.md at the repo root, under today's
+   date, newest entry at the top. Record every prompt I gave you this
+   session, in order, including any corrections. End the entry with a
+   short summary: the outcome, any places where I deviated from a
+   recommended answer or asked follow-up questions, and anything that
+   went sideways.
+
+### Summary
+- **Outcome:** Phase 7 is implemented; nothing is committed.
+  - `accounts/admin.py` registers `SecurityEventAdmin`. The list shows
+    user, event type, time, IP address, and device. It filters by event
+    type and searches by username. The agent also added a date
+    drill-down and `list_select_related`, which the plan didn't ask for.
+    Add, change, and delete permissions all return `False`, so even a
+    superuser gets a read-only detail page, no actions (no bulk delete),
+    and a 403 on the add, change-POST, and delete URLs.
+  - Staff recovery needed no new code.
+  - `accounts/test_admin.py` adds nine tests: changelist columns, the
+    event-type filter, username search, the read-only detail page;
+    add, change, delete, and bulk delete each refused with the event
+    left intact; and a superuser setting a staff user's password through
+    the user admin.
+  - The suite went from 427 to 436 passing. Ruff check and format are
+    clean.
+  - Docs: `docs/ARCHITECTURE.md` records the read-only admin log, the
+    staff recovery path (user admin "Reset password"), the admin
+    recovery path (`manage.py changepassword`), and the PRD's accepted
+    enumeration leak at signup and change email.
+  - Prompt 2 got a five-part browser checklist: viewing, filtering,
+    searching, and drilling into the log as `admin`; confirming it's
+    read-only (no add button or actions, a read-only detail page, 403s
+    on the add and delete URLs); resetting `employee`'s password from
+    the user admin; a fresh failed sign-in showing up in the log; and
+    `changepassword` for the admin, followed by reseeding.
+- **Deviations:** None. Prompt 2 was a follow-up question.
+- **Sideways:** Two tests failed on the first run and were fixed before
+  reporting:
+  - The test reversed `admin:accounts_user_password_change`, but
+    Django's `UserAdmin` hardcodes that URL name as
+    `admin:auth_user_password_change`, even for a custom user model.
+  - The bulk-delete test counted every event, but the superuser's
+    `force_login` records its own "signed in" event (as
+    `docs/TESTING.md` warns). It now checks that the fixture's events by
+    primary key are still there.
+  - The first full run passed the 120-second tool timeout and finished
+    in the background (436 passed in 121 s).
+  - The agent didn't look at the admin pages in a browser. The work was
+    verified by tests only.
+
 ## 2026-10-10 — Account Security Center: Phase 6, remaining event sources and seed history
 
 ### Prompts

@@ -103,6 +103,20 @@ nothing serves media (or static files — there's no whitenoise yet).
     are relative to the run, so pruning never removes them.
   - The Security Center hub shows the signed-in user's 10 most recent
     events.
+  - Django admin lists every user's events (user, type, time, IP, device),
+    filtered by event type and searched by username. `SecurityEventAdmin`
+    blocks add, change, and delete for everyone, superusers included, so
+    the log is a trustworthy audit record: events come only from `record`
+    (and `seed`) and go only by pruning or by deleting their user.
+- Recovery without email: staff are excluded from the reset form, so a
+  locked-out employee is recovered by the admin setting a new password
+  from the user admin's "Reset password" form. A locked-out admin runs
+  `uv run python manage.py changepassword <username>` on the server.
+- Known, accepted enumeration leak: the forgot-password page reveals
+  nothing about which emails are registered, but signup and change email
+  do. Both must refuse a duplicate email, and the error says so. The only
+  leak-free fix is email activation at signup, which is out of scope. The
+  system is **not** enumeration-proof.
 - `Address` is untyped — shipping vs billing is a fact about a checkout, not
   about an address.
 - `accounts/constants.py` is the home of `US_STATES` and `zip_validator`,
