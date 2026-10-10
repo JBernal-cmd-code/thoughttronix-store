@@ -82,9 +82,25 @@ nothing serves media (or static files — there's no whitenoise yet).
   - `SecurityEvent.device` is the User-Agent as a "Browser on OS" label
     from `accounts/user_agents.py` (`describe_user_agent`, no
     dependencies), falling back to "Unknown device".
-  - Event sources: `accounts/signals.py`, connected in
-    `AccountsConfig.ready()`, records "signed in" on Django's
-    `user_logged_in` signal. That includes `Client.force_login` in tests.
+  - Event sources, one per event type:
+    - **Signed in**: `accounts/signals.py` (connected in
+      `AccountsConfig.ready()`), on Django's `user_logged_in` signal.
+      That includes `Client.force_login` in tests.
+    - **Failed sign-in**: `accounts/signals.py`, on `user_login_failed`.
+      The signal carries only the typed credentials, so it's recorded only
+      when the typed username belongs to an existing user. Attempts on
+      unknown usernames are dropped. The password-change and change-email
+      forms check the password directly, so a wrong password there is not
+      a failed sign-in.
+    - **Password changed**: `ChangePasswordView.form_valid`.
+    - **Password reset**: `PasswordResetSetView.form_valid`, when the new
+      password is set (not when the link is requested).
+    - **Email changed**: `ChangeEmailView.form_valid`.
+  - `seed` backdates a short history for `customer` with `create`, not
+    `record`: sign-ins from a laptop and a phone, a password change, and
+    one failed sign-in from an unfamiliar IP. IPs are from the
+    documentation ranges (`203.0.113.0/24`, `198.51.100.0/24`) and times
+    are relative to the run, so pruning never removes them.
   - The Security Center hub shows the signed-in user's 10 most recent
     events.
 - `Address` is untyped — shipping vs billing is a fact about a checkout, not

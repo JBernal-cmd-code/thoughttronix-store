@@ -1,6 +1,7 @@
-"""Security activity: recording and pruning events, the sign-in source, the
+"""Security activity: recording and pruning events, every event source, the
 device label, and the hub's recent-activity list."""
 
+import re
 from datetime import timedelta
 
 import pytest
@@ -57,6 +58,108 @@ def test_a_wrong_password_records_no_signed_in_event(client, customer):
     client.post(reverse("accounts:login"), {"username": "customer", "password": "nope"})
 
     assert not customer.security_events.filter(event_type=SIGNED_IN).exists()
+
+
+def test_wrong_password_records_a_failed_sign_in(client, customer):
+    client.post(
+        reverse("accounts:login"),
+        {"username": "customer", "password": "nope"},
+        REMOTE_ADDR="198.51.100.66",
+        HTTP_USER_AGENT=FIREFOX_ON_WINDOWS,
+    )
+
+    event = customer.security_events.get()
+    assert event.event_type == SecurityEvent.EventType.SIGN_IN_FAILED
+    assert event.ip_address == "198.51.100.66"
+    assert event.user_agent == FIREFOX_ON_WINDOWS
+
+
+def test_failed_sign_in_on_unknown_username_records_nothing(client, customer):
+    client.post(reverse("accounts:login"), {"username": "nobody", "password": "nope"})
+
+    assert not SecurityEvent.objects.exists()
+
+
+def test_signed_in_password_change_records_password_changed(client, customer):
+    client.force_login(customer)
+
+    client.post(
+        reverse("accounts:password_change"),
+        {
+            "old_password": "customer123",
+            "new_password1": "fresh-synapse-4242",
+            "new_password2": "fresh-synapse-4242",
+        },
+        REMOTE_ADDR="203.0.113.7",
+    )
+
+    event = customer.security_events.exclude(event_type=SIGNED_IN).get()
+    assert event.event_type == SecurityEvent.EventType.PASSWORD_CHANGED
+    assert event.ip_address == "203.0.113.7"
+
+
+def test_refused_password_change_records_nothing(client, customer):
+    client.force_login(customer)
+
+    client.post(
+        reverse("accounts:password_change"),
+        {
+            "old_password": "not-my-password",
+            "new_password1": "fresh-synapse-4242",
+            "new_password2": "fresh-synapse-4242",
+        },
+    )
+
+    assert not customer.security_events.exclude(event_type=SIGNED_IN).exists()
+
+
+def test_completed_reset_records_password_reset(client, customer, mailoutbox):
+    client.post(reverse("accounts:password_reset"), {"email": "customer@example.com"})
+    link = re.search(r"https?://[^/\s]+(/\S+)", mailoutbox[0].body).group(1)
+    form_url = client.get(link, follow=True).redirect_chain[-1][0]
+
+    client.post(
+        form_url,
+        {"new_password1": "fresh-synapse-4242", "new_password2": "fresh-synapse-4242"},
+        REMOTE_ADDR="203.0.113.7",
+    )
+
+    event = customer.security_events.get()
+    assert event.event_type == SecurityEvent.EventType.PASSWORD_RESET
+    assert event.ip_address == "203.0.113.7"
+
+
+def test_email_change_records_email_changed(client, customer):
+    client.force_login(customer)
+
+    client.post(
+        reverse("accounts:email_change"),
+        {
+            "new_email1": "casey.new@example.com",
+            "new_email2": "casey.new@example.com",
+            "password": "customer123",
+        },
+        REMOTE_ADDR="203.0.113.7",
+    )
+
+    event = customer.security_events.exclude(event_type=SIGNED_IN).get()
+    assert event.event_type == SecurityEvent.EventType.EMAIL_CHANGED
+    assert event.ip_address == "203.0.113.7"
+
+
+def test_refused_email_change_records_nothing(client, customer):
+    client.force_login(customer)
+
+    client.post(
+        reverse("accounts:email_change"),
+        {
+            "new_email1": "casey.new@example.com",
+            "new_email2": "casey.new@example.com",
+            "password": "not-my-password",
+        },
+    )
+
+    assert not customer.security_events.exclude(event_type=SIGNED_IN).exists()
 
 
 def test_record_without_remote_address_leaves_ip_empty(customer):
@@ -189,6 +292,23 @@ def test_hub_event_shows_type_time_ip_and_device(client, customer):
     assert "Oct 3, 2026, 2:" in page
     assert "203.0.113.7" in page
     assert "Firefox on Windows" in page
+
+
+def test_hub_labels_every_event_type(client, customer):
+    for event_type in SecurityEvent.EventType:
+        SecurityEvent.objects.create(user=customer, event_type=event_type)
+    client.force_login(customer)
+
+    page = client.get(reverse("accounts:security")).content.decode()
+
+    for label in [
+        "Signed in",
+        "Failed sign-in",
+        "Password changed",
+        "Password reset",
+        "Email changed",
+    ]:
+        assert f">{label}</td>" in page
 
 
 def test_hub_shows_empty_state_without_events(client, customer):

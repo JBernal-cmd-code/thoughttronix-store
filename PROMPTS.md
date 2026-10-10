@@ -28,6 +28,69 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-10 — Account Security Center: Phase 6, remaining event sources and seed history
+
+### Prompts
+1. `@prd/account-security.md @plans/account-security.md` Do Phase 6.
+2. How can I manually verify this phase in the browser?
+3. Append a session log to PROMPTS.md at the repo root, under today's
+   date, newest entry at the top. Record every prompt I gave you this
+   session, in order, including any corrections. End the entry with a
+   short summary: the outcome, any places where I deviated from a
+   recommended answer or asked follow-up questions, and anything that
+   went sideways.
+
+### Summary
+- **Outcome:** Phase 6 is implemented; nothing is committed.
+  - `accounts/signals.py` gains a `user_login_failed` receiver. It
+    records "failed sign-in" only when the typed username belongs to an
+    existing user; unknown usernames are dropped.
+  - `accounts/views.py`: `ChangePasswordView`, `PasswordResetSetView`
+    and `ChangeEmailView` each record their own event type in
+    `form_valid`, through `SecurityEvent.objects.record`.
+  - `seed` gives `customer` six backdated events over the last 26 days:
+    four sign-ins from a laptop (Firefox on Windows) and a phone (Safari
+    on iOS), a password change, and one failed sign-in from
+    `198.51.100.173` (Chrome on Linux), the only event from that IP.
+    Every IP is in a documentation range and every time is relative to
+    the run. The events are written with `create`, not `record`, since
+    there's no request. The seed already deletes the demo users, and
+    their events go with them, so no extra wipe step was needed. The
+    docstring and the summary line mention the history.
+  - Nine new tests:
+    - `accounts/test_security_events.py`: a failed sign-in with its IP
+      and User-Agent; nothing recorded for an unknown username; each
+      account change records its own type; a refused password or email
+      change records nothing; the hub labels all five event types.
+    - `products/tests.py`: the seeded history meets the acceptance
+      criteria; the idempotence test now compares the history too.
+  - The suite went from 418 to 427 passing. Ruff is clean.
+  - Docs: `docs/ARCHITECTURE.md` lists every event source and the
+    seeded history. `docs/TESTING.md` notes that a failed sign-in on an
+    existing username also creates an event.
+  - Prompt 2 got a seven-part browser checklist: the seeded history
+    table, failed sign-ins (known and unknown usernames), change
+    password, change email, a reset through the console email, staff
+    isolation with `employee`, and running the seed again.
+- **Deviations:**
+  - The user asked one follow-up question (prompt 2). The agent asked no
+    questions and made no recommendations for the user to accept or
+    override.
+  - The agent made a few choices on its own:
+    - A wrong current password on the change-password or change-email
+      form is not logged as a failed sign-in, because those forms check
+      the password directly. This is recorded in `docs/ARCHITECTURE.md`.
+    - Failed sign-ins on the Django admin login page are recorded too,
+      since admin uses the same sign-in path.
+    - It added the `docs/TESTING.md` note, which the plan didn't ask for.
+- **Sideways:**
+  - `ruff format` reformatted `products/tests.py` before the test run.
+    Lint and the full suite passed after that.
+  - The agent didn't run `seed` on the local database, because it is
+    destructive and `db.sqlite3` is tracked. The seeded history was
+    checked only by tests. The agent has not looked at the pages in a
+    browser.
+
 ## 2026-10-10 — Account Security Center: Phase 5, security activity and sign-ins
 
 ### Prompts

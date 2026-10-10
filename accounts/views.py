@@ -28,7 +28,7 @@ from .forms import (
     SignInForm,
     SignupForm,
 )
-from .models import Address
+from .models import Address, SecurityEvent
 
 
 class SignupView(SuccessMessageMixin, CreateView):
@@ -106,6 +106,9 @@ class PasswordResetSetView(PasswordResetConfirmView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
+        SecurityEvent.objects.record(
+            form.user, SecurityEvent.EventType.PASSWORD_RESET, self.request
+        )
         form.user.send_password_changed_notice()
         messages.success(
             self.request, "Your password has been reset. Sign in with your new one."
@@ -143,6 +146,9 @@ class ChangePasswordView(LoginRequiredMixin, PasswordChangeView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
+        SecurityEvent.objects.record(
+            form.user, SecurityEvent.EventType.PASSWORD_CHANGED, self.request
+        )
         form.user.send_password_changed_notice()
         messages.success(self.request, "Your password has been changed.")
         return response
@@ -165,7 +171,10 @@ class ChangeEmailView(LoginRequiredMixin, SuccessMessageMixin, FormView):
         return kwargs
 
     def form_valid(self, form):
-        form.save()
+        user = form.save()
+        SecurityEvent.objects.record(
+            user, SecurityEvent.EventType.EMAIL_CHANGED, self.request
+        )
         return super().form_valid(form)
 
 

@@ -8,7 +8,10 @@ Demo logins (documented in the README):
 
     admin / admin123        superuser
     employee / employee123  staff, "Junior Thought Curator"
-    customer / customer123  a plain customer, with order history and a live cart
+    customer / customer123  a plain customer, with order history, a live
+                            cart, and a few weeks of security activity —
+                            including one failed sign-in from an
+                            unfamiliar IP
 """
 
 import random
@@ -23,7 +26,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
-from accounts.models import Address
+from accounts.models import Address, SecurityEvent
 from coupons.models import Coupon, CouponError
 from orders.models import Cart, Order, OrderItem
 from products.images import prepare_product_image
@@ -530,6 +533,33 @@ SEED_ADDRESSES = [
 
 CARD_LAST4S = ["4242", "4111", "1881", "0005"]
 
+# User-Agents for the customer's seeded security history.
+CUSTOMER_LAPTOP = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0"
+)
+CUSTOMER_PHONE = (
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+)
+STRANGER = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+)
+
+# The customer demo login's security history: (days ago, hours ago, event
+# type, IP, User-Agent). Home and phone sign-ins, a password change, and one
+# failed sign-in from somewhere unfamiliar for the Security Center to show
+# off. IPs come from the reserved documentation ranges, so they're clearly
+# fake; times are relative to the seed run, so 90-day pruning never bites.
+CUSTOMER_SECURITY_HISTORY = [
+    (26, 3, SecurityEvent.EventType.SIGNED_IN, "203.0.113.24", CUSTOMER_LAPTOP),
+    (19, 8, SecurityEvent.EventType.SIGNED_IN, "203.0.113.58", CUSTOMER_PHONE),
+    (19, 7, SecurityEvent.EventType.PASSWORD_CHANGED, "203.0.113.58", CUSTOMER_PHONE),
+    (8, 14, SecurityEvent.EventType.SIGN_IN_FAILED, "198.51.100.173", STRANGER),
+    (5, 2, SecurityEvent.EventType.SIGNED_IN, "203.0.113.24", CUSTOMER_LAPTOP),
+    (1, 5, SecurityEvent.EventType.SIGNED_IN, "203.0.113.58", CUSTOMER_PHONE),
+]
+
 
 class Command(BaseCommand):
     help = "Wipe and rebuild the demo world: catalog, tags, and demo accounts."
@@ -544,6 +574,7 @@ class Command(BaseCommand):
         self._create_customer_cart()
         self._create_coupons()
         self._create_orders()
+        self._create_security_history()
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -556,6 +587,7 @@ class Command(BaseCommand):
                 f"({Order.objects.exclude(coupon=None).count()} with a coupon), "
                 f"{Coupon.objects.count()} coupons, "
                 f"{Address.objects.count()} saved addresses, "
+                f"{SecurityEvent.objects.count()} security events, "
                 f"and a live cart for 'customer'."
             )
         )
@@ -746,6 +778,24 @@ class Command(BaseCommand):
                 lines=lines,
                 rng=rng,
                 coupon=coupon,
+            )
+
+    def _create_security_history(self):
+        """A few weeks of security activity for 'customer', backdated.
+
+        Written with ``create`` rather than ``record``: there's no request
+        to read an IP from, and every timestamp is in the past. The wipe
+        needs no extra step — events cascade with their user.
+        """
+        customer = get_user_model().objects.get(username="customer")
+        now = timezone.now()
+        for days, hours, event_type, ip, user_agent in CUSTOMER_SECURITY_HISTORY:
+            SecurityEvent.objects.create(
+                user=customer,
+                event_type=event_type,
+                created_at=now - timedelta(days=days, hours=hours),
+                ip_address=ip,
+                user_agent=user_agent,
             )
 
     @staticmethod

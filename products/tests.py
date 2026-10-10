@@ -1,13 +1,16 @@
 from decimal import Decimal
 from http import HTTPStatus
+from ipaddress import ip_address, ip_network
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.db import IntegrityError
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import escape
 
+from accounts.models import SECURITY_EVENT_RETENTION, SecurityEvent
 from orders.models import CartItem, Order, OrderItem
 
 from .models import Category, Product, Tag
@@ -255,6 +258,47 @@ def test_seed_builds_the_demo_world(db):
     assert statuses == set(Order.Status.values)
 
 
+def test_seed_gives_customer_a_security_history(db):
+    call_command("seed")
+
+    customer = get_user_model().objects.get(username="customer")
+    events = list(customer.security_events.all())
+    assert 5 <= len(events) <= 6
+    assert SecurityEvent.objects.exclude(user=customer).count() == 0
+    assert all(
+        event.created_at > timezone.now() - SECURITY_EVENT_RETENTION for event in events
+    )
+    assert all(
+        any(
+            ip_address(event.ip_address) in ip_network(documentation)
+            for documentation in ("203.0.113.0/24", "198.51.100.0/24")
+        )
+        for event in events
+    )
+
+    failed = [
+        e for e in events if e.event_type == SecurityEvent.EventType.SIGN_IN_FAILED
+    ]
+    assert len(failed) == 1
+    assert failed[0].ip_address not in {
+        e.ip_address for e in events if e is not failed[0]
+    }
+    assert {e.event_type for e in events} >= {
+        SecurityEvent.EventType.SIGNED_IN,
+        SecurityEvent.EventType.PASSWORD_CHANGED,
+    }
+    assert len({e.device for e in events}) > 1
+
+
+def security_history():
+    """Every seeded security event, minus its run-relative timestamp."""
+    return list(
+        SecurityEvent.objects.values_list(
+            "user__username", "event_type", "ip_address", "user_agent"
+        )
+    )
+
+
 def test_seed_is_idempotent(db):
     call_command("seed")
     first = (
@@ -265,6 +309,7 @@ def test_seed_is_idempotent(db):
         CartItem.objects.count(),
         Order.objects.count(),
         OrderItem.objects.count(),
+        security_history(),
     )
 
     call_command("seed")
@@ -276,6 +321,7 @@ def test_seed_is_idempotent(db):
         CartItem.objects.count(),
         Order.objects.count(),
         OrderItem.objects.count(),
+        security_history(),
     )
 
     assert first == second
