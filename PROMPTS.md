@@ -28,6 +28,70 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-10 — Account Security Center: Phase 2, forgot password
+
+### Prompts
+1. `@prd/account-security.md @plans/account-security.md` Do Phase 2.
+2. How can I manually verify this phase in the browser?
+3. Append a session log to PROMPTS.md at the repo root, under today's
+   date, newest entry at the top. Record every prompt I gave you this
+   session, in order, including any corrections. End the entry with a
+   short summary: the outcome, any places where I deviated from a
+   recommended answer or asked follow-up questions, and anything that
+   went sideways.
+
+### Summary
+- **Outcome:** Phase 2 is implemented; nothing is committed.
+  - Django's reset views are subclassed in `accounts/views.py` at
+    `password-reset/`, `password-reset/done/`, and
+    `reset/<uidb64>/<token>/`. Completion goes to sign-in with a success
+    message, and the user isn't signed in automatically.
+  - `PasswordResetRequestForm.get_users()` lowercases the input and drops
+    staff on top of Django's active and usable-password filter.
+    `SetNewPasswordForm` is the styled new-password form.
+  - The done page shows the typed address, which travels through the
+    session (`password_reset_email`), never the URL.
+  - Plain-text email templates are in `templates/accounts/emails/`: the
+    reset email (with the username) and its subject, plus the
+    password-changed notice. `User.send_password_changed_notice()` sends
+    the notice, so Phase 3 can reuse it.
+  - `PASSWORD_RESET_TIMEOUT = 60 * 60` is set in settings.
+  - The sign-in page links to forgot-password. Signup shows the link only
+    for the duplicate-email error, through a `SignupForm.email_taken`
+    property that checks the error code `unique`.
+  - 27 new tests in `accounts/test_password_reset.py`. The suite went from
+    338 to 365 passing, and Ruff is clean.
+  - `docs/VIEWS.md` and `docs/ARCHITECTURE.md` were updated as the plan
+    asks.
+  - Prompt 2 got a step-by-step browser checklist. It uses the seeded
+    accounts (staff, an unusable-password background customer, and `dcole`
+    made inactive in the admin), a private window as the "other device,"
+    and restores `db.sqlite3` afterwards.
+- **Deviations:**
+  - The user asked one follow-up question (prompt 2). The agent asked no
+    questions and made no recommendations for the user to accept or
+    override.
+  - The agent made three small choices on its own and reported each one:
+    - The done page reads the email from the session without removing it,
+      so it survives a refresh.
+    - `templates/accounts/partials/_field.html` is reused on the reset
+      form, and its comment now says "accounts" instead of "address".
+    - No security events are recorded yet; the plan leaves that to
+      Phase 6.
+- **Sideways:**
+  - Two new tests failed on the first run, and both were bugs in the
+    tests, not in the code. One expected an HTML-escaped apostrophe in
+    literal template text. The other compared the two done pages byte for
+    byte, which failed on the per-request CSRF token, so the token is now
+    stripped before comparing.
+  - `ruff format` reformatted two files after the tests passed. The suite
+    was run again afterwards and stayed green.
+  - The agent didn't open the pages in a browser. The work was verified by
+    tests and by rendering a sample reset email.
+  - `uv run` again warned that `VIRTUAL_ENV` pointed at another project's
+    `.venv`. The agent ignored it and used the project environment.
+  - The session started with `/clear`.
+
 ## 2026-10-10 — Account Security Center: Phase 1, email at signup
 
 ### Prompts
