@@ -28,6 +28,227 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-10 — Account Security Center: seven-phase plan via prd-to-plan (no code yet)
+
+### Prompts
+1. `/prd-to-plan @prd/account-security-center.md`
+2. Keep phases 5 and 6 separate. Also do not split phase 7 but instead
+   move the seed history into phase 6 so that it lands with failed
+   sign-ins. Phase 7 should become the admin audit log and staff
+   recovery. And yes, the sign up link can wait for phase 2. Each phase
+   should update the relevant docs for what it builds since there's no
+   separate docs phase.
+3. Append a session log to PROMPTS.md at the repo root, under today's
+   date, newest entry at the top. Record every prompt I gave you this
+   session, in order, including any corrections. End the entry with a
+   short summary: the outcome, any places where I deviated from a
+   recommended answer or asked follow-up questions, and anything that
+   went sideways.
+
+### Summary
+- **Outcome:** This was a planning-only session; no application code
+  changed. Following the `prd-to-plan` skill, the agent read the PRD; the
+  `accounts` views, forms, URLs, models, admin, and mixins; `config/urls.py`;
+  the settings for auth and email; the seed's user creation; the nav in
+  `base.html`; `conftest.py`; all four `docs/` files; and
+  `plans/core-platform.md`. It proposed seven vertical slices and asked
+  three questions, then wrote `plans/account-security-center.md` (new,
+  uncommitted) with the user's changes. The plan header holds the durable
+  decisions: `accounts` owns everything, the `User.email` constraint, the
+  `SecurityEvent` model and its manager method, the `accounts:` URLs,
+  access rules, and session behavior. The seven phases are:
+  1. email at signup
+  2. forgot password, end to end
+  3. Security Center hub and change password
+  4. change email
+  5. security activity: sign-ins
+  6. failed sign-ins, account-change events, and seed history
+  7. admin audit log and staff recovery
+
+  Every phase's acceptance criteria end with a "Docs:" item naming which
+  `docs/` files it updates. As in the earlier draft, Phase 1 gives
+  every test user a distinct email, since the fixtures and the ad-hoc
+  `create_user`/`create_superuser` calls create users with a blank
+  email, and a unique column would make them collide.
+- **Deviations:**
+  - The agent asked three questions: should phases 5 and 6 merge, should
+    Phase 7 split, and could the signup link wait for Phase 2.
+  - The user kept 5 and 6 separate and agreed the link could wait.
+  - On Phase 7, the user picked neither option. Instead they moved the
+    seed history into Phase 6 to land with failed sign-ins, leaving Phase 7
+    as the admin log and staff recovery.
+  - The user added a requirement the agent hadn't proposed: each phase
+    updates its own docs, since there's no docs phase.
+- **Sideways:**
+  - Nothing failed. No tests or commands were run, since only a plan was
+    written.
+  - In the first written version, Phase 3 hedged about whether the hub's
+    Change email link could point to a page that didn't exist yet. The
+    agent removed the hedge before reporting: the link now arrives in
+    Phase 4, with its page.
+  - `plans/account-security-draft.md`, which the previous entry says it
+    wrote, was not in `plans/` when this session looked. This plan was
+    written fresh from the PRD rather than revised from that draft.
+  - The first attempt to insert this entry targeted the wrong anchor text
+    and failed without changing the file; the second attempt succeeded.
+  - The session started with `/clear`.
+
+## 2026-10-10 — Account Security Center: implementation plan drafted (no code yet)
+
+### Prompts
+1. `@prd/account-security-center.md` Turn this into a multi-phase plan and
+   save it to plans/account-security-draft.md.
+2. Append a session log to PROMPTS.md at the repo root, under today's
+   date, newest entry at the top. Record every prompt I gave you this
+   session, in order, including any corrections. End the entry with a
+   short summary: the outcome, any places where I deviated from a
+   recommended answer or asked follow-up questions, and anything that
+   went sideways.
+
+### Summary
+- **Outcome:** This was a planning-only session; no application code
+  changed. The agent read the PRD, `plans/core-platform.md` (for its
+  layout), the `accounts` models, views, forms, URLs, and admin, plus
+  `conftest.py`, the seed's user creation, settings, and
+  `docs/ARCHITECTURE.md` and `docs/TESTING.md`. It wrote
+  `plans/account-security-draft.md` (new, uncommitted) with five phases:
+  1. email on every account (tracer bullet)
+  2. the Security Center page, the `SecurityEvent` log, sign-in and
+     failed sign-in signals, and the read-only admin
+  3. change password and change email, with notice emails
+  4. the forgot-password flow
+  5. seeded events, docs, and the final sweep
+
+  Each phase has goals, tasks, automated and manual verification, and an
+  out-of-bounds list. The plan ends with three open questions.
+
+  Reading the code found a problem the PRD didn't mention. The test
+  fixtures and five ad-hoc `create_user`/`create_superuser` calls create
+  users with no email, so a unique email column would break the suite.
+  Phase 1 fixes those tests first. The agent also found that Django's
+  stock add-user admin form has no email field.
+- **Deviations:**
+  - The user asked no follow-up questions, and the agent asked none.
+  - The plan goes beyond the PRD in a few places, each chosen by the agent
+    and listed in the plan where it matters:
+    - `User.save()` lowercases email as well as the forms (this is an
+      open question in the plan)
+    - `UserAdmin` gets an `add_fieldsets` that includes email
+    - `SecurityEvent.created_at` uses `default=timezone.now`, not
+      `auto_now_add`, so the seed can backdate events
+    - `record()` accepts `request=None`
+    - the reset flow ends at the login page, not Django's complete view
+- **Sideways:**
+  - Nothing failed. No tests or commands were run, since only a plan was
+    written.
+  - The first draft put the signup page's "Forgot your password?" link in
+    Phase 1, before its URL existed, with a workaround. The agent moved it
+    to Phase 4 before reporting.
+  - The plan was written by hand, without the `prd-to-plan` skill. That
+    skill only appeared in the skill list after the plan was finished.
+  - The session started with `/clear`.
+
+## 2026-10-10 — Account Security Center: design interview and PRD (no code yet)
+
+### Prompts
+1. `/grill-me` I want to design an Account Security Center for the
+   ThoughtTronix Store. Right now customers can only sign up, sign in, and
+   sign out, and once they're in there's almost nothing they can do with
+   their account. If someone forgets their password, they're locked out of
+   their order history. Customers should be able to give an email address
+   when they sign up, change their password, and reset a forgotten password
+   through email. Before asking me things you could find yourself, explore
+   the codebase to see how accounts work today. Please do not write a PRD,
+   plan, or any other documentation yet, because I'll ask for that
+   separately once we finish the interview.I'm also open to one or two
+   other security features that would make the Security Center more
+   useful, so please suggest some and explain the tradeoffs.
+2. (Grill-me answer — email required and unique) Option A is good
+3. (Grill-me answer — email capitalization) Option A is good
+4. (Grill-me answer — sign-in identifier) Option A is good
+5. (Grill-me answer — forgot-password response for unknown emails)
+   Option C, but show the email unmasked so the customer can actually spot
+   a typo.
+6. (Grill-me answer — reset link lifetime) Option B is good
+7. (Grill-me answer — after a successful reset) Option A is good
+8. (Grill-me answer — changing the account email) Option B is good
+9. (Grill-me answer — Security Center page shape) Option A is good
+10. (Grill-me answer — staff and email reset) B. Staff get the Security
+    Center but no email reset. Admin recovers them, and manage.py
+    changepassword is the fallback for the admin.
+11. (Grill-me answer — extra security features) Option 1 is good
+12. (Grill-me answer — which events are logged) Option B is good
+13. (Grill-me answer — what each event stores) Option B is good
+14. (Grill-me answer — retention and list length) Option B is good
+15. (Grill-me answer — duplicate email at signup) Option B is good
+16. (Grill-me answer — staff visibility of the log) Option B is good
+17. (Grill-me answer — seeded demo activity) Option B is good
+18. `/to-prd`
+19. Append a session log to PROMPTS.md at the repo root, under today's
+    date, newest entry at the top. Record every prompt I gave you this
+    session, in order, including any corrections. End the entry with a
+    short summary: the outcome, any places where I deviated from a
+    recommended answer or asked follow-up questions, and anything that
+    went sideways.
+
+### Summary
+- **Outcome:** This was a design-only session; no application code
+  changed. The agent first read the `accounts` app, settings, templates,
+  docs, and seed data. It found:
+  - `User` is `AbstractUser`, with an email column that is optional, not
+    unique, and never filled in by signup
+  - only stock login and logout views, and no reset or change-password
+    views
+  - the console email backend already configured
+  - the address book as the only signed-in account page
+
+  It also queried the database: all 12 users have unique emails, so no
+  question about migrating existing data was needed.
+
+  Sixteen questions settled the design:
+  - email required, unique, and lowercased when saved; username stays the
+    sign-in identifier
+  - Django's built-in reset with a 1-hour single-use link, a response that
+    doesn't reveal whether the email exists, the username in the email,
+    and no auto-login after a reset
+  - change password and change email both behind the current password,
+    with notice emails
+  - a hub-plus-form-pages Security Center at `/accounts/security/`
+  - staff get the center but no email reset
+  - a `SecurityEvent` activity log: five event types, IP and device,
+    90-day prune-on-write, latest 10 shown, read-only in Django admin,
+    and seeded history for `customer`
+
+  `/to-prd` wrote `prd/account-security-center.md` (new, uncommitted). No
+  plan was written, and nothing is committed.
+- **Deviations:**
+  - Q4 (the forgot-password page): the user took Option C but overrode the
+    masked display the option showed, choosing to show the email unmasked.
+    The agent had said either was fine.
+  - Q10 (extra features): the user chose only the activity log, against
+    the recommended pairing of the activity log with sign-in throttling.
+    Throttling is listed as out of scope.
+  - Q9 the user restated Option B in their own words, adding the admin
+    recovery path, which matched the recommendation's caveat.
+  - Every other answer took the recommendation.
+  - The user asked no follow-up questions.
+  - The agent set several defaults without a question, flagging each in
+    the interview: Django's stock change-password behavior, a
+    "password changed" notice email, typing the new email twice, and the
+    code placement, email, and test conventions. The PRD also added one
+    rule that was never discussed: change email rejects the current
+    address.
+- **Sideways:**
+  - Nothing failed.
+  - Q14 caught a conflict between two earlier answers. The leak-free reset
+    page (Q4) and unique emails (Q1) together mean signup reveals which
+    emails are registered. The user accepted this as a documented leak.
+  - `uv run` printed a warning that `VIRTUAL_ENV` pointed at another
+    project's `.venv`; it was ignored and the project environment was
+    used.
+  - `/login` was run once at the start of the session; it's a CLI
+    command, not a prompt to the agent.
+
 ## 2026-10-03 — Product images: implemented from HANDOFF.md
 
 ### Prompts
