@@ -31,6 +31,7 @@ urlpatterns = [
         views.ChangePasswordView.as_view(),
         name="password_change",
     ),
+    path("security/email/", views.ChangeEmailView.as_view(), name="email_change"),
     # The address book — pks, since these are the customer's own records
     # and have no public-facing slug.
     path("addresses/", views.AddressListView.as_view(), name="addresses"),

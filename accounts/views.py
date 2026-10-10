@@ -13,6 +13,7 @@ from django.urls import reverse_lazy
 from django.views.generic import (
     CreateView,
     DeleteView,
+    FormView,
     ListView,
     TemplateView,
     UpdateView,
@@ -20,6 +21,7 @@ from django.views.generic import (
 
 from .forms import (
     AddressForm,
+    ChangeEmailForm,
     ChangePasswordForm,
     PasswordResetRequestForm,
     SetNewPasswordForm,
@@ -139,6 +141,27 @@ class ChangePasswordView(LoginRequiredMixin, PasswordChangeView):
         form.user.send_password_changed_notice()
         messages.success(self.request, "Your password has been changed.")
         return response
+
+
+class ChangeEmailView(LoginRequiredMixin, SuccessMessageMixin, FormView):
+    """Move the account to a new email by confirming the password.
+
+    The form does the checking, saving, and notifying the old address.
+    """
+
+    form_class = ChangeEmailForm
+    template_name = "accounts/email_change_form.html"
+    success_url = reverse_lazy("accounts:security")
+    success_message = "Your email address has been changed."
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        form.save()
+        return super().form_valid(form)
 
 
 # --- The address book -------------------------------------------------------

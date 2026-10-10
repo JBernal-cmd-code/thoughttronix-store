@@ -55,11 +55,15 @@ nothing serves media (or static files — there's no whitenoise yet).
   an env setting. Links are single-use because the token covers the
   password hash. A reset invalidates every existing session, since the
   session auth hash covers the password too.
+- Changing the account email takes effect immediately: the new address is
+  **not** confirmed by a link. `ChangeEmailForm.save()` sets it (lowercase)
+  and calls `User.send_email_changed_notice(old_email)`, which writes to
+  the **old** address, where the real owner will still read it.
 - Account emails are plain-text templates in `templates/accounts/emails/`
-  (`password_reset.txt` + `_subject.txt`, `password_changed.txt`), sent
-  through the console backend. `User.send_password_changed_notice()` sends
-  the password-changed notice after a completed reset and after a
-  signed-in password change.
+  (`password_reset.txt` + `_subject.txt`, `password_changed.txt`,
+  `email_changed.txt`), sent through the console backend.
+  `User.send_password_changed_notice()` sends the password-changed notice
+  after a completed reset and after a signed-in password change.
 - `Address` is untyped — shipping vs billing is a fact about a checkout, not
   about an address.
 - `accounts/constants.py` is the home of `US_STATES` and `zip_validator`,

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.mail import send_mail
 from django.db import models
 from django.template.loader import render_to_string
 
@@ -39,6 +40,22 @@ class User(AbstractUser):
         self.email_user(
             "Your ThoughtTronix password was changed",
             render_to_string("accounts/emails/password_changed.txt", {"user": self}),
+        )
+
+    def send_email_changed_notice(self, old_email):
+        """Email the *old* address that the account email changed.
+
+        The new address is the one that may not be theirs, so the notice
+        goes where the real owner will still read it.
+        """
+        send_mail(
+            "Your ThoughtTronix email address was changed",
+            render_to_string(
+                "accounts/emails/email_changed.txt",
+                {"user": self, "old_email": old_email},
+            ),
+            None,
+            [old_email],
         )
 
 

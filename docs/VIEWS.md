@@ -39,12 +39,18 @@ signed-in user, **staff included**, gets in. No URL takes a user id; every
 page acts on `request.user`. Same list-page-plus-form-pages shape as the
 address book.
 
-- `accounts:security` — `security/`, the hub: username, email, and a link
-  to change the password.
+- `accounts:security` — `security/`, the hub: username, email, and links
+  to change the password and the email.
 - `accounts:password_change` — `security/password/`, Django's
   `PasswordChangeView` (current password, new one twice). It keeps this
   session signed in and signs out every other one, sends the
   password-changed notice, and returns to the hub with a message.
+- `accounts:email_change` — `security/email/`, a `FormView` around
+  `ChangeEmailForm` (new email twice, current password). The form refuses
+  a mismatch, a wrong password, the user's own email, and an email used by
+  another account (signup's "already in use" wording, without the
+  forgot-password link). On success the form saves the email lowercase and
+  notifies the old address; the view returns to the hub with a message.
 
 ## Back-office pages
 

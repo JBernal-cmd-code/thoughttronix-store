@@ -1,4 +1,5 @@
-"""The Security Center: the hub, the nav link, and changing a password."""
+"""The Security Center: the hub, the nav link, and changing a password or
+email."""
 
 from http import HTTPStatus
 
@@ -9,7 +10,25 @@ from django.urls import reverse
 
 NEW_PASSWORD = "fresh-synapse-4242"
 
-SECURITY_PAGES = ["accounts:security", "accounts:password_change"]
+NEW_EMAIL = "casey.new@example.com"
+
+SECURITY_PAGES = [
+    "accounts:security",
+    "accounts:password_change",
+    "accounts:email_change",
+]
+
+
+def change_email(client, email=NEW_EMAIL, again=None, password="customer123"):
+    return client.post(
+        reverse("accounts:email_change"),
+        {
+            "new_email1": email,
+            "new_email2": email if again is None else again,
+            "password": password,
+        },
+        follow=True,
+    )
 
 
 def change_password(client, old="customer123", new=NEW_PASSWORD, again=None):
@@ -60,7 +79,7 @@ def test_nav_hides_security_from_anonymous_visitors(client, db):
     assert reverse("accounts:security") not in page
 
 
-def test_hub_shows_username_email_and_change_password_link(client, staff_user):
+def test_hub_shows_username_email_and_change_links(client, staff_user):
     client.force_login(staff_user)
 
     page = client.get(reverse("accounts:security")).content.decode()
@@ -68,6 +87,7 @@ def test_hub_shows_username_email_and_change_password_link(client, staff_user):
     assert "employee" in page
     assert "employee@example.com" in page
     assert reverse("accounts:password_change") in page
+    assert reverse("accounts:email_change") in page
 
 
 # --- Change password ----------------------------------------------------------
@@ -142,4 +162,92 @@ def test_staff_can_change_their_password(client, staff_user, mailoutbox):
 
     staff_user.refresh_from_db()
     assert staff_user.check_password(NEW_PASSWORD)
+    assert mailoutbox[0].to == ["employee@example.com"]
+
+
+# --- Change email -------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "field", "message"),
+    [
+        (
+            {"again": "someone.else@example.com"},
+            "new_email2",
+            "The two email addresses didn't match.",
+        ),
+        (
+            {"password": "not-my-password"},
+            "password",
+            "Your password was entered incorrectly.",
+        ),
+        (
+            {"email": "Employee@Example.com"},
+            "new_email1",
+            "That email address is already in use.",
+        ),
+        (
+            {"email": "Customer@Example.com"},
+            "new_email1",
+            "That's already your email address.",
+        ),
+    ],
+    ids=["mismatch", "wrong password", "used by another account", "unchanged"],
+)
+def test_bad_email_change_is_refused(
+    client, customer, staff_user, mailoutbox, kwargs, field, message
+):
+    client.force_login(customer)
+
+    response = change_email(client, **kwargs)
+
+    assert any(message in error for error in response.context["form"].errors[field])
+    assert mailoutbox == []
+    customer.refresh_from_db()
+    assert customer.email == "customer@example.com"
+
+
+def test_duplicate_email_error_has_no_forgot_password_link(
+    client, customer, staff_user
+):
+    client.force_login(customer)
+
+    response = change_email(client, email="employee@example.com")
+
+    assert reverse("accounts:password_reset") not in response.content.decode()
+
+
+def test_email_change_saves_lowercase_and_returns_to_hub(client, customer):
+    client.force_login(customer)
+
+    response = change_email(client, email="Casey.New@Example.COM")
+
+    assert response.redirect_chain[-1][0] == reverse("accounts:security")
+    page = response.content.decode()
+    assert "Your email address has been changed." in page
+    assert NEW_EMAIL in page
+    customer.refresh_from_db()
+    assert customer.email == NEW_EMAIL
+
+
+def test_email_change_notifies_the_old_address_only(client, customer, mailoutbox):
+    client.force_login(customer)
+
+    change_email(client)
+
+    assert len(mailoutbox) == 1
+    notice = mailoutbox[0]
+    assert notice.to == ["customer@example.com"]
+    assert "email" in notice.subject.lower()
+    assert NEW_EMAIL in notice.body
+    assert "Contact the store" in notice.body
+
+
+def test_staff_can_change_their_email(client, staff_user, mailoutbox):
+    client.force_login(staff_user)
+
+    change_email(client, password="employee123")
+
+    staff_user.refresh_from_db()
+    assert staff_user.email == NEW_EMAIL
     assert mailoutbox[0].to == ["employee@example.com"]

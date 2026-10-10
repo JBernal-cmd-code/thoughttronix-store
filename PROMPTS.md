@@ -28,6 +28,73 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-10 — Account Security Center: Phase 4, change email
+
+### Prompts
+1. `@prd/account-security.md @plans/account-security.md` Do Phase 4.
+2. How can I manually verify this phase in the browser?
+3. Append a session log to PROMPTS.md at the repo root, under today's
+   date, newest entry at the top. Record every prompt I gave you this
+   session, in order, including any corrections. End the entry with a
+   short summary: the outcome, any places where I deviated from a
+   recommended answer or asked follow-up questions, and anything that
+   went sideways.
+
+### Summary
+- **Outcome:** Phase 4 is implemented; nothing is committed.
+  - `ChangeEmailForm` (`accounts/forms.py`) takes the new email twice and
+    the current password. It refuses a mismatch, a wrong password, an
+    email used by another account in any capitalization (signup's "That
+    email address is already in use." wording, without the
+    forgot-password link), and the user's own current email, each as a
+    field error. Its `save()` stores the email lowercase and sends the
+    notice.
+  - `User.send_email_changed_notice(old_email)` sends the new plain-text
+    `templates/accounts/emails/email_changed.txt` to the **old** address
+    only.
+  - `ChangeEmailView` is a thin `LoginRequiredMixin` `FormView` at
+    `accounts:email_change` (`security/email/`). It returns to the hub
+    with a success message. The hub now has a "Change email" button.
+  - 13 new or extended tests in `accounts/test_security_center.py`
+    (access for the new page, the four refusals, no forgot-password link,
+    lowercase save, the hub showing the new email, the notice going only
+    to the old address, staff changing their email). Ruff is clean, and
+    no migration was needed.
+  - `docs/VIEWS.md` lists the change-email URL. `docs/ARCHITECTURE.md`
+    records that the change takes effect without confirmation and lists
+    the new email template.
+  - Prompt 2 got a browser checklist using the seeded `customer` and
+    `employee` accounts. It covers each refusal, the successful change,
+    reading the notice in the dev-server terminal, and checking that a
+    password reset now follows the new address.
+- **Deviations:**
+  - The user asked one follow-up question (prompt 2). The agent asked no
+    questions and made no recommendations for the user to accept or
+    override.
+  - The agent made a few small choices on its own:
+    - The email change records no security event yet; the plan leaves
+      that to Phase 6.
+    - The tests went into the existing `accounts/test_security_center.py`
+      rather than a new file.
+    - `PROMPTS.md` was left alone until this prompt.
+- **Sideways:**
+  - The first full run had 398 passing and 1 failing. The notice test
+    looked for "Contact the store", but the template wrapped that phrase
+    across two lines. The agent rewrapped the template, and the
+    `accounts` tests then passed (77). The full suite was **not** rerun
+    after the fix, and the agent said so.
+  - `ruff format --check` flagged the new tests. `ruff format` fixed
+    them.
+  - The browser checklist told the user to run `seed` before and after,
+    which rewrites the tracked `db.sqlite3`. Phase 3's checklist used
+    `git restore db.sqlite3` instead. The checklist didn't point out this
+    side effect.
+  - The agent didn't open the pages in a browser. The work was verified
+    by tests only.
+  - `uv run` again warned that `VIRTUAL_ENV` pointed at another project's
+    `.venv`. The agent ignored it and used the project environment.
+  - The session started with `/clear`.
+
 ## 2026-10-10 — Account Security Center: Phase 3, hub and change password
 
 ### Prompts

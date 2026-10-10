@@ -86,6 +86,69 @@ class ChangePasswordForm(PasswordChangeForm):
             field.widget.attrs["class"] = "input w-full"
 
 
+class ChangeEmailForm(forms.Form):
+    """A new email, twice, and the current password.
+
+    The address is compared and saved lowercase. It must differ from the
+    current one and not belong to another account — refused with signup's
+    own "already in use" wording. The change takes effect on save, with no
+    confirmation link; the old address gets a notice instead.
+    """
+
+    new_email1 = forms.EmailField(label="New email address")
+    new_email2 = forms.EmailField(label="New email address again")
+    password = forms.CharField(
+        label="Current password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}),
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = "input w-full"
+
+    def clean_new_email1(self):
+        email = self.cleaned_data["new_email1"].lower()
+        if email == self.user.email:
+            raise forms.ValidationError(
+                "That's already your email address.", code="unchanged"
+            )
+        if User.objects.filter(email=email).exists():
+            raise forms.ValidationError(
+                User._meta.get_field("email").error_messages["unique"],
+                code="unique",
+            )
+        return email
+
+    def clean_new_email2(self):
+        email1 = self.cleaned_data.get("new_email1")
+        email2 = self.cleaned_data["new_email2"].lower()
+        if email1 and email1 != email2:
+            raise forms.ValidationError(
+                "The two email addresses didn't match.", code="email_mismatch"
+            )
+        return email2
+
+    def clean_password(self):
+        password = self.cleaned_data["password"]
+        if not self.user.check_password(password):
+            raise forms.ValidationError(
+                "Your password was entered incorrectly. Please enter it again.",
+                code="password_incorrect",
+            )
+        return password
+
+    def save(self):
+        """Switch the account to the new email and notify the old one."""
+        old_email = self.user.email
+        self.user.email = self.cleaned_data["new_email1"]
+        self.user.save(update_fields=["email"])
+        self.user.send_email_changed_notice(old_email)
+        return self.user
+
+
 class AddressForm(forms.ModelForm):
     """An entry in the customer's address book.
 
