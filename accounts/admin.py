@@ -10,4 +10,9 @@ class UserAdmin(DjangoUserAdmin):
         *DjangoUserAdmin.fieldsets,
         ("ThoughtTronix", {"fields": ("job_title",)}),
     )
+    # Email is required and unique, so the add form must ask for it too.
+    add_fieldsets = (
+        *DjangoUserAdmin.add_fieldsets,
+        ("Contact", {"fields": ("email",)}),
+    )
     list_display = ("username", "email", "job_title", "is_staff")

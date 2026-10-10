@@ -41,6 +41,14 @@ nothing serves media (or static files — there's no whitenoise yet).
 **accounts**
 
 - `accounts.User` is `AbstractUser` + nullable `job_title`.
+- `User.email` is required and unique, and stored lowercase.
+  `User.clean()` lowercases it, and ModelForm validation runs `clean()`
+  before the uniqueness check, so signup and the admin's user forms both
+  refuse a registered email in any capitalization ("That email address is
+  already in use."). Code that saves a `User` without a form must lowercase
+  the email itself. Lookups by email lowercase their input; nothing needs
+  a case-insensitive comparison. Usernames stay the only sign-in
+  identifier.
 - `Address` is untyped — shipping vs billing is a fact about a checkout, not
   about an address.
 - `accounts/constants.py` is the home of `US_STATES` and `zip_validator`,

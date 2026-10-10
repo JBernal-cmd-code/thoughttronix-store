@@ -10,10 +10,27 @@ class User(AbstractUser):
 
     Roles use Django's own vocabulary and nothing else: customers are
     plain users, employees are ``is_staff``, the admin is ``is_superuser``.
+
+    Email is required and unique, and stored lowercase, so a plain unique
+    constraint is enough to keep ``Casey@Example.com`` and
+    ``casey@example.com`` from becoming two accounts. Usernames remain the
+    sign-in identifier.
     """
 
+    email = models.EmailField(
+        "email address",
+        unique=True,
+        error_messages={"unique": "That email address is already in use."},
+    )
     # Nullable per the PRD: an absent job title is unknown, not empty.
     job_title = models.CharField(max_length=150, null=True, blank=True)  # noqa: DJ001
+
+    def clean(self):
+        # ModelForm validation calls clean() before validate_unique(), so
+        # lowercasing here makes every form's uniqueness check
+        # case-insensitive too.
+        super().clean()
+        self.email = self.email.lower()
 
 
 class AddressQuerySet(models.QuerySet):

@@ -28,7 +28,7 @@ def media_root(settings, tmp_path):
 @pytest.fixture
 def customer(db):
     return get_user_model().objects.create_user(
-        username="customer", password="customer123"
+        username="customer", email="customer@example.com", password="customer123"
     )
 
 
@@ -36,6 +36,7 @@ def customer(db):
 def staff_user(db):
     return get_user_model().objects.create_user(
         username="employee",
+        email="employee@example.com",
         password="employee123",
         is_staff=True,
         job_title="Junior Thought Curator",

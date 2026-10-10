@@ -20,7 +20,9 @@ VALID_ADDRESS = {
 
 @pytest.fixture
 def other_customer(db):
-    return get_user_model().objects.create_user(username="other", password="x")
+    return get_user_model().objects.create_user(
+        username="other", email="other@example.com", password="x"
+    )
 
 
 @pytest.fixture

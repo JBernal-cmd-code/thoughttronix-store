@@ -436,7 +436,9 @@ def test_manage_list_shows_thumbnails(client, staff_user, product):
 
 
 def test_admin_uploads_are_processed_too(client, product):
-    admin = get_user_model().objects.create_superuser("root", password="root123")
+    admin = get_user_model().objects.create_superuser(
+        "root", email="root@example.com", password="root123"
+    )
     client.force_login(admin)
 
     response = client.post(

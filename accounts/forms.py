@@ -5,14 +5,20 @@ from .models import Address, User
 
 
 class SignupForm(UserCreationForm):
-    """Django's stock signup fields — username plus password and confirmation.
+    """Django's stock signup fields plus email — username, email, password
+    and confirmation.
 
-    No email: signing up asks for the minimum. The widgets carry DaisyUI
+    Signing up still asks for the minimum, and email is now part of that
+    minimum: without one, a customer who forgets their password has no way
+    back in. The model lowercases the address and refuses one that's
+    already registered, in any capitalization. The widgets carry DaisyUI
     classes because plain Django forms own their own styling here.
     """
 
     class Meta(UserCreationForm.Meta):
         model = User
+        fields = ("username", "email")
+        help_texts = {"email": "Used only to help you get back into your account."}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

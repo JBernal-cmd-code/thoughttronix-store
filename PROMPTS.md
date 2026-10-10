@@ -28,6 +28,67 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-10 — Account Security Center: Phase 1, email at signup
+
+### Prompts
+1. `@prd/account-security.md @plans/account-security.md` Do Phase 1
+2. How can I manually verify this phase in the browser?
+3. Append a session log to PROMPTS.md at the repo root, under today's
+   date, newest entry at the top. Record every prompt I gave you this
+   session, in order, including any corrections. End the entry with a
+   short summary: the outcome, any places where I deviated from a
+   recommended answer or asked follow-up questions, and anything that
+   went sideways.
+
+### Summary
+- **Outcome:** Phase 1 is implemented; nothing is committed.
+  - `User.email` is required and unique, with the error "That email
+    address is already in use." `User.clean()` lowercases it. Because
+    ModelForm validation runs `clean()` before the uniqueness check,
+    duplicates are refused in any capitalization.
+  - Migration `accounts/0003_user_email_unique.py` adds the constraint.
+  - `SignupForm` asks for email, with a hint, and its docstring explains
+    why email is now part of "the minimum."
+  - Every test user got a distinct email: the `customer` and `employee`
+    fixtures, the four ad-hoc `other` users, and the `root` superuser.
+  - 8 new tests in `accounts/tests.py`. The suite went from 330 to 338
+    passing, and Ruff is clean.
+  - `docs/ARCHITECTURE.md` and `docs/TESTING.md` were updated as the plan
+    asks.
+  - The migration was checked against a copy of `db.sqlite3` in the
+    scratchpad, so the tracked snapshot is unchanged.
+  - Prompt 2 got a step-by-step browser checklist covering signup, the
+    case-insensitive duplicate check, and the admin add-user form. It also
+    explained how to restore the snapshot afterwards.
+- **Deviations:**
+  - The user asked one follow-up question (prompt 2). The agent asked no
+    questions and made no recommendations for the user to accept or
+    override.
+  - The agent went beyond the plan in two places, both reported:
+    - It added email to `UserAdmin.add_fieldsets`, because the stock
+      add-user form has no email field. Admin-created users would all get
+      a blank email, and the second would crash on the constraint. One
+      test covers it.
+    - The migration also carries an `AlterModelOptions` for `Address`. That
+      mismatch was already there: the model orders by `-id` while
+      migration 0002 recorded `-pk`. It changes nothing in practice.
+  - The PRD says normalization happens at signup and change email. The
+    agent put it in `User.clean()` instead of the form, so the admin's
+    user forms get it too. Code that saves a `User` without a form must
+    still lowercase the email itself; `ARCHITECTURE.md` says so.
+- **Sideways:**
+  - The PRD says the database had 12 users, all with unique emails. The
+    committed snapshot actually has 13. `jeber`, created 2026-10-10, has a
+    blank email. One blank is allowed under the unique constraint, so the
+    migration applied cleanly. The agent left the data alone and gave the
+    user three choices: set an email in the admin, re-seed, or leave it.
+    This is still undecided.
+  - Whether to migrate the committed `db.sqlite3` itself is also left to
+    the user.
+  - `uv run` again warned that `VIRTUAL_ENV` pointed at another project's
+    `.venv`. The agent ignored it and used the project environment.
+  - The session started with `/clear`.
+
 ## 2026-10-10 — Account Security Center: seven-phase plan via prd-to-plan (no code yet)
 
 ### Prompts
