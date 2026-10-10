@@ -120,9 +120,14 @@ class PasswordResetSetView(PasswordResetConfirmView):
 
 
 class SecurityCenterView(LoginRequiredMixin, TemplateView):
-    """The hub: username, email, and links to change them."""
+    """The hub: username, email, links to change them, and recent activity."""
 
     template_name = "accounts/security.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["events"] = self.request.user.security_events.all()[:10]
+        return context
 
 
 class ChangePasswordView(LoginRequiredMixin, PasswordChangeView):

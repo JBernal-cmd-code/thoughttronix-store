@@ -25,4 +25,42 @@
       </div>
     </div>
   </div>
+
+  <h2 class="mt-10 text-2xl font-bold">Recent activity</h2>
+  {% if events %}
+    <p class="mt-2 opacity-70">
+      Your 10 most recent security events. Don&rsquo;t recognize one? Change
+      your password.
+    </p>
+    <div class="mt-4 overflow-x-auto rounded-box bg-base-100 shadow-md">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>When (UTC)</th>
+            <th>Device</th>
+            <th>IP address</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for event in events %}
+            <tr>
+              <td class="font-semibold">{{ event.get_event_type_display }}</td>
+              <td>{{ event.created_at|date:"M j, Y, g:i A" }}</td>
+              <td>{{ event.device }}</td>
+              <td class="font-mono">{{ event.ip_address|default:"Unknown" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="py-16 text-center">
+      <p class="text-5xl">🛡️</p>
+      <p class="mt-4 text-xl font-semibold">No security activity yet</p>
+      <p class="mt-2 opacity-70">
+        Sign-ins and changes to your password or email will show up here.
+      </p>
+    </div>
+  {% endif %}
 {% endblock %}

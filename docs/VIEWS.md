@@ -39,8 +39,9 @@ signed-in user, **staff included**, gets in. No URL takes a user id; every
 page acts on `request.user`. Same list-page-plus-form-pages shape as the
 address book.
 
-- `accounts:security` — `security/`, the hub: username, email, and links
-  to change the password and the email.
+- `accounts:security` — `security/`, the hub: username, email, links to
+  change the password and the email, and the user's 10 most recent
+  security events (with an empty state).
 - `accounts:password_change` — `security/password/`, Django's
   `PasswordChangeView` (current password, new one twice). It keeps this
   session signed in and signs out every other one, sends the

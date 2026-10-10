@@ -1,10 +1,16 @@
+from datetime import timedelta
+
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.mail import send_mail
 from django.db import models
 from django.template.loader import render_to_string
+from django.utils import timezone
 
 from .constants import US_STATES, zip_validator
+from .user_agents import describe_user_agent
+
+SECURITY_EVENT_RETENTION = timedelta(days=90)
 
 
 class User(AbstractUser):
@@ -57,6 +63,68 @@ class User(AbstractUser):
             None,
             [old_email],
         )
+
+
+class SecurityEventQuerySet(models.QuerySet):
+    def record(self, user, event_type, request):
+        """Record ``event_type`` for ``user``, then prune their old events.
+
+        The IP is the request's remote address — behind a reverse proxy
+        that's the proxy, not the client. Pruning here, on every write,
+        keeps each user's log to the retention window with no scheduled
+        job; other users' events are left alone.
+        """
+        meta = request.META if request is not None else {}
+        event = self.create(
+            user=user,
+            event_type=event_type,
+            ip_address=meta.get("REMOTE_ADDR") or None,
+            user_agent=meta.get("HTTP_USER_AGENT", ""),
+        )
+        self.filter(
+            user=user, created_at__lt=timezone.now() - SECURITY_EVENT_RETENTION
+        ).delete()
+        return event
+
+
+class SecurityEvent(models.Model):
+    """Something that happened to how an account is protected.
+
+    Shown to the account owner on the Security Center so they can spot
+    activity that wasn't theirs. Sign-outs and reset requests are left out
+    on purpose: neither tells the owner anything about who got in.
+    """
+
+    class EventType(models.TextChoices):
+        SIGNED_IN = "signed_in", "Signed in"
+        SIGN_IN_FAILED = "sign_in_failed", "Failed sign-in"
+        PASSWORD_CHANGED = "password_changed", "Password changed"
+        PASSWORD_RESET = "password_reset", "Password reset"
+        EMAIL_CHANGED = "email_changed", "Email changed"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="security_events",
+    )
+    event_type = models.CharField(max_length=20, choices=EventType)
+    # A default rather than auto_now_add, so seeded history can be backdated.
+    created_at = models.DateTimeField(default=timezone.now)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    objects = SecurityEventQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.get_event_type_display()} — {self.user} at {self.created_at}"
+
+    @property
+    def device(self):
+        """The User-Agent as a short label, such as "Firefox on Windows"."""
+        return describe_user_agent(self.user_agent)
 
 
 class AddressQuerySet(models.QuerySet):

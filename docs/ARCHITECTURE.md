@@ -64,6 +64,29 @@ nothing serves media (or static files — there's no whitenoise yet).
   `email_changed.txt`), sent through the console backend.
   `User.send_password_changed_notice()` sends the password-changed notice
   after a completed reset and after a signed-in password change.
+- `SecurityEvent` is the account's security activity log: the user
+  (cascade), an `event_type` (signed in, failed sign-in, password changed,
+  password reset, email changed), `created_at`, `ip_address`, and the raw
+  `user_agent`, newest first. Sign-outs and reset requests are not
+  recorded. `created_at` is a default, not `auto_now_add`, so history can
+  be backdated.
+  - Write events only through `SecurityEvent.objects.record(user,
+    event_type, request)`. It takes the IP from `REMOTE_ADDR` and the
+    User-Agent from its header (a `None` request records neither). Then it
+    deletes that user's events older than 90 days
+    (`SECURITY_EVENT_RETENTION`). Retention needs no scheduled job, and
+    other users' events are untouched. An inactive account keeps old
+    events until its next one.
+  - Known gap: behind a reverse proxy `REMOTE_ADDR` is the proxy's address.
+    Forwarded-for headers are not handled.
+  - `SecurityEvent.device` is the User-Agent as a "Browser on OS" label
+    from `accounts/user_agents.py` (`describe_user_agent`, no
+    dependencies), falling back to "Unknown device".
+  - Event sources: `accounts/signals.py`, connected in
+    `AccountsConfig.ready()`, records "signed in" on Django's
+    `user_logged_in` signal. That includes `Client.force_login` in tests.
+  - The Security Center hub shows the signed-in user's 10 most recent
+    events.
 - `Address` is untyped — shipping vs billing is a fact about a checkout, not
   about an address.
 - `accounts/constants.py` is the home of `US_STATES` and `zip_validator`,

@@ -28,6 +28,78 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-10 — Account Security Center: Phase 5, security activity and sign-ins
+
+### Prompts
+1. `@prd/account-security.md @plans/account-security.md` Do Phase 5.
+2. How can I manually verify this phase in the browser?
+3. Append a session log to PROMPTS.md at the repo root, under today's
+   date, newest entry at the top. Record every prompt I gave you this
+   session, in order, including any corrections. End the entry with a
+   short summary: the outcome, any places where I deviated from a
+   recommended answer or asked follow-up questions, and anything that
+   went sideways.
+
+### Summary
+- **Outcome:** Phase 5 is implemented; nothing is committed.
+  - New `SecurityEvent` model (`accounts/models.py`, migration
+    `0004_securityevent`). It has the user, one of five event types,
+    `created_at`, the IP address and the raw User-Agent, newest first.
+    `created_at` is a default rather than `auto_now_add`, so Phase 6's
+    seed can backdate history.
+  - `SecurityEvent.objects.record(user, event_type, request)` takes the
+    IP from `REMOTE_ADDR` and the User-Agent from its header. It then
+    deletes that user's events older than 90 days and leaves other users'
+    events alone. It also accepts a `None` request.
+  - New `accounts/user_agents.py`: `describe_user_agent` turns a
+    User-Agent into a "Browser on OS" label with no dependencies. It
+    falls back to "Unknown browser on …", "… on unknown OS", or "Unknown
+    device".
+  - New `accounts/signals.py`, connected in `AccountsConfig.ready()`. It
+    records "signed in" on Django's `user_logged_in` signal.
+  - The Security Center hub shows the user's 10 most recent events in a
+    table (event, time in UTC, device, IP). With no events it shows an
+    empty state.
+  - New `accounts/test_security_events.py` covers:
+    - recording a sign-in with its IP and User-Agent;
+    - no event on a wrong password;
+    - a request with no remote address;
+    - pruning that leaves other users' events alone;
+    - 12 device-label cases;
+    - the hub's 10-newest limit, own-events-only rule, displayed fields,
+      and empty state.
+  - The suite went from 399 to 418 passing. Ruff is clean.
+  - Docs: `docs/ARCHITECTURE.md` covers the model, the recording method,
+    90-day retention, the proxy IP caveat, the signal receiver, and the
+    device helper. `docs/VIEWS.md` adds the hub's activity list.
+  - Prompt 2 got a browser checklist covering:
+    - the sign-in row;
+    - device labels from other browsers and DevTools device emulation;
+    - the 10-row limit;
+    - own-events-only, checked with `employee`;
+    - no event on a wrong password;
+    - a Django-shell script that tests the empty state and 90-day pruning.
+- **Deviations:**
+  - The user asked one follow-up question (prompt 2). The agent asked no
+    questions and made no recommendations for the user to accept or
+    override.
+  - The agent made a few choices on its own:
+    - It added a `docs/TESTING.md` note that the plan didn't ask for:
+      `client.force_login` now records a sign-in event (with no IP), so
+      tests that count events must allow for it.
+    - It put the tests in a new file instead of
+      `test_security_center.py`.
+    - It added the "Event" column to the hub table now, although only
+      "signed in" exists until Phase 6.
+- **Sideways:**
+  - `ruff format --check` flagged the new test file. `ruff format` fixed
+    it.
+  - After that formatting fix and the doc edits, only the `accounts`
+    tests were rerun (96 passing), not the full suite. The agent said so.
+  - `migrate` changed the tracked `db.sqlite3`. The browser checklist
+    warns that `git restore db.sqlite3` alone would bring back a database
+    without the new table, so `migrate` has to be run again after it.
+
 ## 2026-10-10 — Account Security Center: Phase 4, change email
 
 ### Prompts
