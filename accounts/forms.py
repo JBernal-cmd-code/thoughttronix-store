@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import (
     AuthenticationForm,
+    PasswordChangeForm,
     PasswordResetForm,
     SetPasswordForm,
     UserCreationForm,
@@ -67,6 +68,17 @@ class PasswordResetRequestForm(PasswordResetForm):
 
 class SetNewPasswordForm(SetPasswordForm):
     """The new password, twice, checked by the project's validators."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = "input w-full"
+
+
+class ChangePasswordForm(PasswordChangeForm):
+    """The current password, then the new one twice, checked by the
+    project's validators — so someone at an unlocked computer can't
+    change it."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

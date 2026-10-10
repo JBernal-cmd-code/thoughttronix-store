@@ -3,16 +3,24 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
     LoginView,
     LogoutView,
+    PasswordChangeView,
     PasswordResetConfirmView,
     PasswordResetDoneView,
     PasswordResetView,
 )
 from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, DeleteView, ListView, UpdateView
+from django.views.generic import (
+    CreateView,
+    DeleteView,
+    ListView,
+    TemplateView,
+    UpdateView,
+)
 
 from .forms import (
     AddressForm,
+    ChangePasswordForm,
     PasswordResetRequestForm,
     SetNewPasswordForm,
     SignInForm,
@@ -100,6 +108,36 @@ class PasswordResetSetView(PasswordResetConfirmView):
         messages.success(
             self.request, "Your password has been reset. Sign in with your new one."
         )
+        return response
+
+
+# --- Security Center ----------------------------------------------------------
+#
+# How the signed-in user's account is protected. For every signed-in user,
+# staff included, and always about request.user — no URL here takes an id.
+
+
+class SecurityCenterView(LoginRequiredMixin, TemplateView):
+    """The hub: username, email, and links to change them."""
+
+    template_name = "accounts/security.html"
+
+
+class ChangePasswordView(LoginRequiredMixin, PasswordChangeView):
+    """Change the password by confirming the current one.
+
+    Django's view keeps this session signed in (it updates the session auth
+    hash); every other session dies, since the hash covers the password.
+    """
+
+    form_class = ChangePasswordForm
+    template_name = "accounts/password_change_form.html"
+    success_url = reverse_lazy("accounts:security")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        form.user.send_password_changed_notice()
+        messages.success(self.request, "Your password has been changed.")
         return response
 
 

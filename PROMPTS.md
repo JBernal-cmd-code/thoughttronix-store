@@ -28,6 +28,63 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-10 — Account Security Center: Phase 3, hub and change password
+
+### Prompts
+1. `@prd/account-security.md @plans/account-security.md` Do Phase 3.
+2. How can I manually verify this phase in the browser?
+3. Append a session log to PROMPTS.md at the repo root, under today's
+   date, newest entry at the top. Record every prompt I gave you this
+   session, in order, including any corrections. End the entry with a
+   short summary: the outcome, any places where I deviated from a
+   recommended answer or asked follow-up questions, and anything that
+   went sideways.
+
+### Summary
+- **Outcome:** Phase 3 is implemented; nothing is committed.
+  - Signed-in users see a "Security" link in the nav, next to
+    "Addresses."
+  - The hub is `SecurityCenterView` at `accounts:security`
+    (`security/`). It shows the username, the email, and a "Change
+    password" link.
+  - Change password is `ChangePasswordView` at `accounts:password_change`
+    (`security/password/`). It subclasses Django's `PasswordChangeView`
+    and uses a styled `ChangePasswordForm`. On success it keeps this
+    session, signs out the others, sends the existing password-changed
+    notice through `User.send_password_changed_notice()`, and returns to
+    the hub with a success message.
+  - Both pages use `LoginRequiredMixin`, act only on `request.user`, and
+    let staff in.
+  - 21 new tests in `accounts/test_security_center.py`. The suite went
+    from 365 to 386 passing, and Ruff is clean.
+  - `docs/VIEWS.md`, `docs/FRONTEND.md`, and `docs/ARCHITECTURE.md` were
+    updated as the plan asks.
+  - Prompt 2 got a step-by-step browser checklist. It uses the seeded
+    `customer` and `employee` accounts and a private window as the
+    "other device." It ends with `git restore db.sqlite3`.
+- **Deviations:**
+  - The user asked one follow-up question (prompt 2). The agent asked no
+    questions and made no recommendations for the user to accept or
+    override.
+  - The agent made three small choices on its own and reported each one:
+    - The hub doesn't link to change email or show activity yet; the plan
+      leaves those to Phases 4 and 5.
+    - A password change records no security event yet; the plan leaves
+      that to Phase 6.
+    - The uncommitted Phase 2 entry in `PROMPTS.md` was left alone until
+      this prompt.
+- **Sideways:**
+  - Nothing failed: the suite passed on the first run, and `ruff format`
+    changed no files.
+  - The agent didn't open the pages in a browser. The work was verified
+    by tests only.
+  - The hub uses an arbitrary Tailwind class
+    (`sm:grid-cols-[max-content_1fr]`), so the CSS has to be rebuilt by
+    the Tailwind watcher or `tailwind build` before it shows.
+  - `uv run` again warned that `VIRTUAL_ENV` pointed at another project's
+    `.venv`. The agent ignored it and used the project environment.
+  - The session started with `/clear`.
+
 ## 2026-10-10 — Account Security Center: Phase 2, forgot password
 
 ### Prompts

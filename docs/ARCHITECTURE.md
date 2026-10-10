@@ -58,7 +58,8 @@ nothing serves media (or static files — there's no whitenoise yet).
 - Account emails are plain-text templates in `templates/accounts/emails/`
   (`password_reset.txt` + `_subject.txt`, `password_changed.txt`), sent
   through the console backend. `User.send_password_changed_notice()` sends
-  the password-changed notice after a completed reset.
+  the password-changed notice after a completed reset and after a
+  signed-in password change.
 - `Address` is untyped — shipping vs billing is a fact about a checkout, not
   about an address.
 - `accounts/constants.py` is the home of `US_STATES` and `zip_validator`,

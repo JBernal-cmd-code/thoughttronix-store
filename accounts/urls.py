@@ -24,6 +24,13 @@ urlpatterns = [
         views.PasswordResetSetView.as_view(),
         name="password_reset_confirm",
     ),
+    # Security Center — always the signed-in user, so no ids in the URL.
+    path("security/", views.SecurityCenterView.as_view(), name="security"),
+    path(
+        "security/password/",
+        views.ChangePasswordView.as_view(),
+        name="password_change",
+    ),
     # The address book — pks, since these are the customer's own records
     # and have no public-facing slug.
     path("addresses/", views.AddressListView.as_view(), name="addresses"),

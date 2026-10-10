@@ -11,6 +11,12 @@
   prefixed with an underscore, never extending `base.html`.
 - Every list view gets a designed empty state, not a blank page.
 
+## Navigation
+
+- Signed-in users see Orders, Addresses, and Security (the Security Center,
+  `accounts:security`) in the navbar; staff also see Back office.
+  Anonymous visitors see only Sign in and Sign up.
+
 ## New pages: checklist
 
 `config/test_style_guard.py` enforces the first three points.

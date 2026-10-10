@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Security — The ThoughtTronix Store{% endblock %}
+
+{% block content %}
+  <h1 class="text-3xl font-bold">Security</h1>
+  <p class="mt-2 opacity-70">How your account is protected.</p>
+
+  <div class="card mt-6 bg-base-100 shadow-md">
+    <div class="card-body">
+      <h2 class="card-title">Your account</h2>
+      <dl class="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-[max-content_1fr]">
+        <dt class="opacity-70">Username</dt>
+        <dd class="font-semibold">{{ user.username }}</dd>
+        <dt class="opacity-70">Email</dt>
+        <dd class="font-semibold">{{ user.email }}</dd>
+      </dl>
+      <div class="card-actions mt-4 justify-end">
+        <a href="{% url 'accounts:password_change' %}" class="btn btn-primary btn-sm">
+          Change password
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

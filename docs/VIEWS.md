@@ -31,6 +31,21 @@ active, **not staff**, and have a usable password. Staff (and the admin)
 never get a reset email, and see the same done page, so nothing reveals the
 account is staff. Their recovery goes through the admin.
 
+## Security Center
+
+How the signed-in user's account is protected, under `/accounts/security/`.
+Access is `LoginRequiredMixin`: anonymous visitors go to login, and every
+signed-in user, **staff included**, gets in. No URL takes a user id; every
+page acts on `request.user`. Same list-page-plus-form-pages shape as the
+address book.
+
+- `accounts:security` — `security/`, the hub: username, email, and a link
+  to change the password.
+- `accounts:password_change` — `security/password/`, Django's
+  `PasswordChangeView` (current password, new one twice). It keeps this
+  session signed in and signs out every other one, sends the
+  password-changed notice, and returns to the hub with a message.
+
 ## Back-office pages
 
 - Back-office templates extend `templates/backoffice/base.html` — the staff
