@@ -1,3 +1,25 @@
+## Account Security Center
+
+1.
+
+The phase I chose to write about is phase 2, which is "Forgot Password, end to end". Once this phase is up, the working behavior is that if a customer forgets their password, they'll have the option to request a link to change their password that is sent to their email. That link can only be used once to set a new password. I verified that this worked by running the server and going to the sign-in page while signed out. I clicked on "Forgot your password?" on the sign-in page and used customer@example.com as my email. From here, a link was posted in the terminal that I copied into my browser and it took me to the reset password page. From here I changed the password from customer123 to fresh-synapse-4242. After entering my new password twice, I was taken back to the login page and a message towards the top of the sign in prompt confirmed my password was reset. I logged in with the new password and I was able to log in successfully. I also tested a few things that should not work. When I pasted the same link again, it said the link doesn't work, so it really only works once. When I typed 123 as the new password, I got errors saying it was too short and too common. I also tried the forgot password page with nobody@example.com and employee@example.com, and it showed the same page but no email showed up in the terminal. This is how I confirmed that the phase was implemented properly and that I did not need to go back and ask Claude for any changes.
+
+2.
+
+Looking back at Understanding Authentication, the first Django authentication component I found is LoginView. It's located in accounts/views.py on line 47, the full line is class SignInView(LoginView):. I chose this because LoginView is a built-in sign in view in Django. In my project, it takes username and password, and will check them, aand if they're both correct it will sign the user in and start a new session. This matches the lesson from Understanding Authentication as this same line of code was used in the lesson, both being used to allow people to signin with a username. The second component I chose is LoginRequiredMixin. This line is located in accounts/views.py on line 125. The full line is class SecurityCenterView(LoginRequiredMixin, TemplateView):. From this line, LoginRequiredMixin checks if a user is signed in, and if they're not, it will send the user to the sign in page. This matches the authentication pattern from the lesson. The lesson explained that during sign in, Django creates a session and the browser sends a cookie with every page after that, so Django knows who the user is through request.user. LoginRequiredMixin uses request.user to check if a user is signed in, which is how it knows whether to let a user into the Security page or send a user to sign in.
+
+3.
+
+I chose password change for this question. Similar to question, password change is in accounts/views.py and is on line 136. It is class ChangePasswordView(LoginRequiredMixin, PasswordChangeView):. This line is a built in Django view for handling password changes. It checks that the old password is correct, runs the password rules on attempted new passwords, and saves the new password as a hash once accepted. This matches the pattern from Password Managment in the sense that the lesson said a passord change should follow Django's built in password framwork instead of just writing your own password code handler. The only real difference from the lessons and my project is that in the lesson, PasswordChangeDoneView is the page that shows once a passowrd is changed. In my project, the page shown after a changed password is the security page with a message that confirms the password has been changed. I accepted this differnce since the security page is where the user initially is at and doesn't really need another page just for confirmation.
+
+4.
+
+For the last question, I went with phase 5, "Security activity, sign ins". This phase added the SecurityEvent model only connects to one event, which is successful sign ins, which then shows those events on the security page. Once this phase was done, I was able to sign in as a customer, go to the security and see a signed in row with the time, my device, and my IP. It did the same for when I signed in from Incognito window, creating a new row. Logging in with a different customer account and employee account would only show the sign ins for that user and not the others. This was a useful stopping point since the activity log was confirmed to work with just one simple event before anything else was added. When the plan was being made, Claude asked if phase 5 and 6 should merge, but I chose to keep them separate to confirm that activity logs were correctly. Then in phase 6, if anything did not work right, I'd be able to fix the problem in the new events and not the activity log itself.
+
+
+
+
+
 ## Product Images
 
 Question 1. 
