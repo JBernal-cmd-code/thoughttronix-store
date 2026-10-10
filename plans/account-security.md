@@ -1,6 +1,6 @@
 # Plan: Account Security Center
 
-> Source PRD: `prd/account-security-center.md`. The PRD owns the requirements;
+> Source PRD: `prd/account-security.md`. The PRD owns the requirements;
 > this plan owns the sequence. Where the two differ, the PRD's wording wins.
 
 ## Architectural decisions
