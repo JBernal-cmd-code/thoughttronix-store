@@ -1,5 +1,10 @@
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import (
+    AuthenticationForm,
+    PasswordResetForm,
+    SetPasswordForm,
+    UserCreationForm,
+)
 
 from .models import Address, User
 
@@ -25,9 +30,43 @@ class SignupForm(UserCreationForm):
         for field in self.fields.values():
             field.widget.attrs["class"] = "input w-full"
 
+    @property
+    def email_taken(self):
+        """True when the email was refused as already registered — the
+        template then offers the forgot-password link beside the error."""
+        return self.has_error("email", "unique")
+
 
 class SignInForm(AuthenticationForm):
     """The stock authentication form, dressed in DaisyUI."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = "input w-full"
+
+
+class PasswordResetRequestForm(PasswordResetForm):
+    """Django's reset request, limited to customers.
+
+    Django already skips inactive users and users without a usable
+    password; this also skips staff, so someone who gets into an
+    employee's inbox can't take over the back office. Staff recovery goes
+    through the admin. Whoever matches, the view shows the same page, so
+    nothing reveals which emails are registered or which belong to staff.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["email"].widget.attrs["class"] = "input w-full"
+
+    def get_users(self, email):
+        # Emails are stored lowercase, so the input is lowercased to match.
+        return (user for user in super().get_users(email.lower()) if not user.is_staff)
+
+
+class SetNewPasswordForm(SetPasswordForm):
+    """The new password, twice, checked by the project's validators."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

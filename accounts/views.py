@@ -1,11 +1,23 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import (
+    LoginView,
+    LogoutView,
+    PasswordResetConfirmView,
+    PasswordResetDoneView,
+    PasswordResetView,
+)
 from django.contrib.messages.views import SuccessMessageMixin
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
-from .forms import AddressForm, SignInForm, SignupForm
+from .forms import (
+    AddressForm,
+    PasswordResetRequestForm,
+    SetNewPasswordForm,
+    SignInForm,
+    SignupForm,
+)
 from .models import Address
 
 
@@ -33,6 +45,61 @@ class SignOutView(LogoutView):
         # would be wiped along with it.
         response = super().post(request, *args, **kwargs)
         messages.info(request, "You have signed out.")
+        return response
+
+
+# --- Forgot password ----------------------------------------------------------
+#
+# Django's reset views, pointed at this project's templates. The request
+# form only matches customers (see PasswordResetRequestForm), and every
+# visitor gets the same done page either way.
+
+RESET_EMAIL_SESSION_KEY = "password_reset_email"
+
+
+class PasswordResetRequestView(PasswordResetView):
+    form_class = PasswordResetRequestForm
+    template_name = "accounts/password_reset_form.html"
+    subject_template_name = "accounts/emails/password_reset_subject.txt"
+    email_template_name = "accounts/emails/password_reset.txt"
+    success_url = reverse_lazy("accounts:password_reset_done")
+
+    def form_valid(self, form):
+        # The typed address travels to the done page in the session, never
+        # the URL, so it stays out of browser history and server logs.
+        self.request.session[RESET_EMAIL_SESSION_KEY] = form.cleaned_data["email"]
+        return super().form_valid(form)
+
+
+class PasswordResetRequestDoneView(PasswordResetDoneView):
+    """The same page whether or not the email matched an account."""
+
+    template_name = "accounts/password_reset_done.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["email"] = self.request.session.get(RESET_EMAIL_SESSION_KEY)
+        return context
+
+
+class PasswordResetSetView(PasswordResetConfirmView):
+    """Set a new password from a reset link, then sign in by hand.
+
+    The user isn't signed in automatically: they go to the sign-in page and
+    prove the new password works. Every session from before the reset is
+    already dead, since the session auth hash covers the password.
+    """
+
+    form_class = SetNewPasswordForm
+    template_name = "accounts/password_reset_confirm.html"
+    success_url = reverse_lazy("accounts:login")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        form.user.send_password_changed_notice()
+        messages.success(
+            self.request, "Your password has been reset. Sign in with your new one."
+        )
         return response
 
 

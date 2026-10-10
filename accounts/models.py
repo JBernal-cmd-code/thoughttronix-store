@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.template.loader import render_to_string
 
 from .constants import US_STATES, zip_validator
 
@@ -31,6 +32,14 @@ class User(AbstractUser):
         # case-insensitive too.
         super().clean()
         self.email = self.email.lower()
+
+    def send_password_changed_notice(self):
+        """Email this user that their password changed, so a change they
+        didn't make doesn't go unnoticed."""
+        self.email_user(
+            "Your ThoughtTronix password was changed",
+            render_to_string("accounts/emails/password_changed.txt", {"user": self}),
+        )
 
 
 class AddressQuerySet(models.QuerySet):

@@ -49,6 +49,16 @@ nothing serves media (or static files — there's no whitenoise yet).
   the email itself. Lookups by email lowercase their input; nothing needs
   a case-insensitive comparison. Usernames stay the only sign-in
   identifier.
+- Forgot password reuses Django's reset views, forms, and token generator
+  (routes and the staff exclusion are in `docs/VIEWS.md`).
+  `PASSWORD_RESET_TIMEOUT` is a fixed one hour (`3600`) in settings, not
+  an env setting. Links are single-use because the token covers the
+  password hash. A reset invalidates every existing session, since the
+  session auth hash covers the password too.
+- Account emails are plain-text templates in `templates/accounts/emails/`
+  (`password_reset.txt` + `_subject.txt`, `password_changed.txt`), sent
+  through the console backend. `User.send_password_changed_notice()` sends
+  the password-changed notice after a completed reset.
 - `Address` is untyped — shipping vs billing is a fact about a checkout, not
   about an address.
 - `accounts/constants.py` is the home of `US_STATES` and `zip_validator`,

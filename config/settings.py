@@ -101,6 +101,11 @@ LOGIN_REDIRECT_URL = "products:catalog"
 
 LOGOUT_REDIRECT_URL = "products:catalog"
 
+# Reset links expire after one hour. A fixed value, not an env setting.
+# They're also single-use: the token covers the password hash, so it dies
+# the moment the password changes.
+PASSWORD_RESET_TIMEOUT = 60 * 60
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
