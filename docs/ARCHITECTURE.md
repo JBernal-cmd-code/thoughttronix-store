@@ -41,8 +41,8 @@ nothing serves media (or static files — there's no whitenoise yet).
   section through the reverse relation
   (`product.reviews.section(product, user)`), not the `Review` model.
 - Exception: the `seed` command (`products/management/commands/seed.py`)
-  builds the whole demo world, so it imports from `coupons`, `orders`, and
-  `wishlists`.
+  builds the whole demo world, so it imports from `coupons`, `orders`,
+  `wishlists`, and `reviews`.
 
 ## Per-app rules
 
@@ -225,3 +225,12 @@ nothing serves media (or static files — there's no whitenoise yet).
   can't bypass the purchase rule or the staff flag. Delete is allowed.
   Moderation itself happens on the product page; there is no back-office
   reviews tab.
+- `seed` writes a handwritten list of reviews (`SEED_REVIEWS`) for a
+  handful of products. Each product's reviews go, in order, to the
+  background customers with a non-cancelled order for it, by username, so
+  every seeded review passes the purchase rule (a test proves it). Each is
+  backdated to a few days after the reviewer's first purchase. `customer`
+  has one review (MindSync) and other purchases left unreviewed. One
+  background review is staff-edited, and most products have none, so the
+  empty state shows. The wipe needs no extra step: reviews cascade with
+  their products and users.

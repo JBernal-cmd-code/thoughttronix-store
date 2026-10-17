@@ -28,6 +28,43 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-17 — Product reviews: Phase 4, seeded demo reviews
+
+### Prompts
+1. `/implement @prd/reviews.md @plans/reviews.md implement phase 4`
+2. yes, go ahead
+3. it passed, go ahead and finish the phase
+
+### Summary
+- **Outcome:** `seed` now writes 21 reviews: 20 by background customers on
+  six products, plus one by `customer`.
+  - **Seed:** a handwritten `SEED_REVIEWS` list in the store's voice. Each
+    product's reviews go, in order, to the background customers who have a
+    non-cancelled order for it, by username, so every review passes the
+    purchase rule. Each is dated a few days after the reviewer's first
+    purchase. If a product ever has fewer buyers than reviews, the seed
+    stops with a `CommandError` rather than break the rule quietly.
+    `customer` has one review (MindSync) and five purchases left to review.
+    One FocusBand review is staff-edited, and 28 products have none. The
+    summary line reports the review count and the staff-edited count.
+  - **Docs:** `ARCHITECTURE.md` names `reviews` in the seed exception and
+    describes the seeded reviews. The seed docstring mentions them too.
+  - **Tests:** 4 new tests in `reviews/tests.py`. Every seeded review is
+    eligible and dated after its purchase. `customer` has exactly one
+    review and an unreviewed eligible purchase. Exactly one review is
+    staff-edited, and some product has none. Seeding twice gives the same
+    reviews.
+  - The suite went from 582 to 586 passing, and Ruff is clean. The user
+    verified the phase in the browser.
+- **TDD:** No behaviors were selected, and the user approved that. The
+  phase is seed data, and the rules it obeys were built in Phases 1–3.
+- **Deviations:** None.
+- **Sideways:** Before writing the list, the agent seeded a throwaway test
+  database to see which background customers bought which products, then
+  picked products with enough buyers. Ruff flagged a `zip()` without
+  `strict=`. A product can have more buyers than reviews, so it got
+  `strict=False` with a comment.
+
 ## 2026-10-17 — Product reviews: Phase 3, staff moderation and the admin overview
 
 ### Prompts

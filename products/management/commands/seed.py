@@ -10,9 +10,13 @@ Demo logins (documented in the README):
     employee / employee123  staff, "Junior Thought Curator"
     customer / customer123  a plain customer, with order history, a live
                             cart, a wishlist of four products (one of
-                            them unavailable), and a few weeks of
-                            security activity — including one failed
-                            sign-in from an unfamiliar IP
+                            them unavailable), a few weeks of security
+                            activity — including one failed sign-in from
+                            an unfamiliar IP — and one product review,
+                            with other purchases left to review
+
+Background customers review a handful of products they really bought, so
+the product pages show summaries, lists, and one "Edited by staff" badge.
 """
 
 import random
@@ -22,7 +26,7 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.core.files import File
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
@@ -32,6 +36,7 @@ from coupons.models import Coupon, CouponError
 from orders.models import Cart, Order, OrderItem
 from products.images import prepare_product_image
 from products.models import Category, Product, Tag
+from reviews.models import Review
 from wishlists.models import Wishlist
 
 # Marketing's product images, full resolution, named <product slug>.jpg.
@@ -572,6 +577,158 @@ CUSTOMER_SECURITY_HISTORY = [
     (1, 5, SecurityEvent.EventType.SIGNED_IN, "203.0.113.58", CUSTOMER_PHONE),
 ]
 
+# Background customers' reviews: product slug -> [(rating, days after the
+# reviewer's first qualifying purchase, comment), ...]. Each product's
+# reviews go, in order, to the background customers who bought it (by
+# username), so every one passes the purchase rule. Products not listed
+# stay unreviewed, so the empty state shows. The copy is the brand.
+SEED_REVIEWS = {
+    "seraphine-doorbell": [
+        (
+            5,
+            3,
+            "Greeted my sister by name before I'd told it she was visiting. "
+            "I hadn't told anyone, actually. Very responsive.",
+        ),
+        (
+            4,
+            10,
+            "Install was easy and the facial recognition is uncanny. Docking a "
+            "star because it now refuses to ring for my mother-in-law. Then "
+            "again.",
+        ),
+        (
+            5,
+            21,
+            "We get far fewer solicitors now. We get far fewer visitors in "
+            "general. Peaceful.",
+        ),
+        (
+            3,
+            6,
+            'Works great, but the "quietly logs the others" part isn\'t quiet. '
+            "It sends me a summary every Sunday.",
+        ),
+    ],
+    "recallpro": [
+        (
+            5,
+            14,
+            "I can find my keys, my parking spot, and every unkind thing anyone "
+            "has ever said to me. Two out of three is a great ratio.",
+        ),
+        (
+            2,
+            30,
+            "Remembered our anniversary perfectly. Also remembered our first "
+            "fight, verbatim, mid-dinner. Please ship the forgetting feature.",
+        ),
+        (
+            4,
+            9,
+            "Indispensable at work. I've won every meeting since I installed "
+            "it, because I can quote all of them.",
+        ),
+        (
+            5,
+            45,
+            "Life-changing, exactly as advertised. I'd describe how, but I'd "
+            "rather not relive it again, and I can't not.",
+        ),
+    ],
+    "focusband-workplace-edition": [
+        (
+            4,
+            12,
+            "My attention score went from 61 to 94 in two weeks. I'm told that "
+            "was my choice.",
+        ),
+        (
+            2,
+            5,
+            "My manager now knows a great deal about my day. [Comment edited "
+            "by ThoughtTronix staff for tone.]",
+        ),
+        (
+            5,
+            20,
+            "Our team's distraction rate is down 40%. Morale data is pending, "
+            "but the band says it's fine.",
+        ),
+    ],
+    "seraphine-gen-1": [
+        (
+            4,
+            8,
+            "She still asks where the Hendersons went. We moved in last "
+            "spring. We're getting used to it, and so is she.",
+        ),
+        (
+            5,
+            15,
+            "Warmer than the new ones. Slower too, but she makes up for it by "
+            "remembering my childhood. Not hers. Mine.",
+        ),
+        (
+            3,
+            4,
+            "Refurbished means she arrived with opinions. Most of them are "
+            "about the previous owners.",
+        ),
+    ],
+    "dreamweaver": [
+        (
+            5,
+            7,
+            "Rehearsed my presentation in my sleep for a week and nailed it. "
+            "The recurring dream about the lighthouse is new, and it isn't "
+            "mine.",
+        ),
+        (
+            4,
+            18,
+            'I wake up rested and fully indexed. The "unrequested material" '
+            "folder is getting large.",
+        ),
+    ],
+    "mindsync": [
+        (
+            5,
+            10,
+            "Thought-to-text works so well I've stopped speaking out loud. My "
+            "family says that's fine. I can hear them thinking it.",
+        ),
+        (
+            4,
+            25,
+            "Ambient recall is a dream. One star off because my phone now "
+            "finishes my thoughts before I do, and it's usually right.",
+        ),
+        (
+            5,
+            40,
+            "Outpatient, painless, permanent, exactly as promised. I can't "
+            "recommend it enough, and I've noticed I can't stop recommending "
+            "it either.",
+        ),
+    ],
+}
+
+# The one background review a staff member moderated: (product slug, index
+# into its SEED_REVIEWS list). Its comment already reads as edited.
+STAFF_EDITED_REVIEW = ("focusband-workplace-edition", 1)
+
+# The customer demo login's one review: (product slug, rating, days after
+# purchase, comment). Their other purchases stay unreviewed, so the create
+# form shows on DreamWeaver, SyncRest, Veil, and the rest.
+CUSTOMER_REVIEW = (
+    "mindsync",
+    5,
+    6,
+    "Installation took forty minutes. I've been thinking about ThoughtTronix "
+    "ever since. Five stars, and I mean that more every day.",
+)
+
 
 class Command(BaseCommand):
     help = "Wipe and rebuild the demo world: catalog, tags, and demo accounts."
@@ -588,6 +745,7 @@ class Command(BaseCommand):
         self._create_coupons()
         self._create_orders()
         self._create_security_history()
+        self._create_reviews()
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -601,6 +759,9 @@ class Command(BaseCommand):
                 f"{Coupon.objects.count()} coupons, "
                 f"{Address.objects.count()} saved addresses, "
                 f"{SecurityEvent.objects.count()} security events, "
+                f"{Review.objects.count()} reviews "
+                f"({Review.objects.filter(edited_by_staff=True).count()} "
+                f"edited by staff), "
                 f"a live cart and a {len(CUSTOMER_WISHLIST)}-item wishlist "
                 f"for 'customer'."
             )
@@ -826,6 +987,73 @@ class Command(BaseCommand):
                 ip_address=ip,
                 user_agent=user_agent,
             )
+
+    def _create_reviews(self):
+        """Reviews that obey the purchase rule, backdated after the purchase.
+
+        Each product's seeded reviews go, in order, to the background
+        customers with a non-cancelled order for it, by username — the
+        orders come from a seeded RNG, so the assignment is the same every
+        run. The wipe needs no extra step — reviews cascade with their
+        products and users.
+        """
+        User = get_user_model()
+        now = timezone.now()
+        background = [username for username, *_ in BACKGROUND_CUSTOMERS]
+
+        for slug, entries in SEED_REVIEWS.items():
+            product = Product.objects.get(slug=slug)
+            buyers = self._first_purchases(
+                product, User.objects.filter(username__in=background)
+            )
+            if len(buyers) < len(entries):
+                raise CommandError(
+                    f"{slug} has {len(entries)} seeded reviews but only "
+                    f"{len(buyers)} background buyers."
+                )
+            for index, ((user, purchased_at), (rating, days, comment)) in enumerate(
+                # Extra buyers simply don't review.
+                zip(buyers, entries, strict=False)
+            ):
+                Review.objects.create(
+                    user=user,
+                    product=product,
+                    rating=rating,
+                    comment=comment,
+                    edited_by_staff=(slug, index) == STAFF_EDITED_REVIEW,
+                    created_at=min(
+                        purchased_at + timedelta(days=days),
+                        now - timedelta(hours=index + 1),
+                    ),
+                )
+
+        slug, rating, days, comment = CUSTOMER_REVIEW
+        product = Product.objects.get(slug=slug)
+        [(customer, purchased_at)] = self._first_purchases(
+            product, User.objects.filter(username="customer")
+        )
+        Review.objects.create(
+            user=customer,
+            product=product,
+            rating=rating,
+            comment=comment,
+            created_at=purchased_at + timedelta(days=days),
+        )
+
+    @staticmethod
+    def _first_purchases(product, users):
+        """``[(user, first purchase time), ...]`` for each of ``users`` with
+        a non-cancelled order containing ``product``, by username."""
+        items = (
+            OrderItem.objects.filter(product=product, order__user__in=users)
+            .exclude(order__status=Order.Status.CANCELLED)
+            .select_related("order__user")
+            .order_by("order__user__username", "order__created_at")
+        )
+        first = {}
+        for item in items:
+            first.setdefault(item.order.user, item.order.created_at)
+        return list(first.items())
 
     @staticmethod
     def _discounts(coupon, lines, created_at):

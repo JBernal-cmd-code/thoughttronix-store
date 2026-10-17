@@ -7,11 +7,13 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
+from django.core.management import call_command
 from django.db import IntegrityError
 from django.urls import reverse
 from django.utils import timezone
 
 from orders.models import Order, OrderItem
+from products.models import Product
 
 from .forms import ReviewForm
 from .models import Review
@@ -1044,3 +1046,56 @@ def test_the_admin_can_delete_a_review(client, superuser, customer, product):
 
     assert response.status_code == HTTPStatus.FOUND
     assert not Review.objects.exists()
+
+
+# --- The seeded demo reviews ------------------------------------------------
+
+
+def seeded_reviews():
+    """Every seeded review, newest first, minus its run-relative time."""
+    return list(
+        Review.objects.values_list(
+            "user__username", "product__slug", "rating", "comment", "edited_by_staff"
+        )
+    )
+
+
+def test_every_seeded_review_passes_the_purchase_rule(db):
+    call_command("seed")
+
+    reviews = list(Review.objects.select_related("user", "product"))
+    assert len(reviews) >= 10
+    for review in reviews:
+        assert Review.is_eligible(review.user, review.product), review
+        purchases = Order.objects.filter(
+            user=review.user, items__product=review.product
+        ).exclude(status=Order.Status.CANCELLED)
+        assert review.created_at > min(order.created_at for order in purchases)
+        assert review.created_at < timezone.now()
+
+
+def test_seed_gives_customer_one_review_and_purchases_left_to_review(db):
+    call_command("seed")
+
+    customer = get_user_model().objects.get(username="customer")
+    assert customer.reviews.count() == 1
+    unreviewed = Product.objects.filter(orderitem__order__user=customer).exclude(
+        reviews__user=customer
+    )
+    assert any(Review.is_eligible(customer, product) for product in unreviewed)
+
+
+def test_seed_shows_the_staff_badge_once_and_leaves_products_unreviewed(db):
+    call_command("seed")
+
+    assert Review.objects.filter(edited_by_staff=True).count() == 1
+    assert Product.objects.filter(reviews=None).exists()
+
+
+def test_seeding_twice_gives_the_same_reviews(db):
+    call_command("seed")
+    first = seeded_reviews()
+
+    call_command("seed")
+
+    assert seeded_reviews() == first
