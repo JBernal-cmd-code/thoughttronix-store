@@ -28,6 +28,49 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-17 — Product reviews: Phase 3, staff moderation and the admin overview
+
+### Prompts
+1. `/implement @prd/reviews.md @plans/reviews.md implement phase 3`
+2. go ahead
+3. it passed, commit and push
+
+### Summary
+- **Outcome:** Staff can edit and delete any review on the product page,
+  and Django admin lists every review read-only.
+  - **Model and views:** No new code. Phase 2's `can_be_changed_by`
+    already allows staff, and `Review.edit` already sets
+    `edited_by_staff`. This phase pins that down with tests.
+  - **Admin:** a new `reviews/admin.py` with `ReviewAdmin`. It lists
+    product, author, rating, date, and the staff flag, filters by rating,
+    and searches by product name and username. Add and change are blocked
+    for everyone, superusers included, like `SecurityEventAdmin`. Delete
+    is allowed.
+  - **Docs:** `ARCHITECTURE.md` (the staff flag rule and the admin
+    lockdown) and `VIEWS.md` (staff moderate on the product page; creating
+    still needs a purchase).
+  - **Tests:** 15 new tests:
+    - Model: staff can change any review, the staff flag on someone
+      else's review but not their own, and the author's later edit keeps
+      it.
+    - Product page: staff get Edit and Delete on every card and can use
+      all four endpoints on any review. Staff without a purchase get the
+      note and a 403, and with one they can review.
+    - Admin: the changelist's filter and search, add and change refused
+      for a superuser, and delete.
+  - The suite went from 567 to 582 passing, and Ruff is clean. The user
+    verified the phase in the browser.
+- **TDD:** No behaviors were selected, and the user approved that. Phase
+  2 had already built the staff behavior, so its tests would never fail
+  first, and the admin follows the existing `SecurityEventAdmin` pattern.
+- **Deviations:** None. The plan was approved as offered.
+- **Sideways:** Two test assertions were changed before the first run.
+  One looked for the name "Jordan" on a review whose author has no first
+  name. The other matched Django's escaped apostrophe. Both were replaced
+  with plainer checks, and every test passed on the first run. The agent
+  told the user "18 new tests" when handing over for verification; the
+  real count is 15, and it was corrected while writing this entry.
+
 ## 2026-10-17 — Product reviews: Phase 2, editing and deleting your own review
 
 ### Prompts

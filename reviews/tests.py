@@ -233,6 +233,40 @@ def test_the_authors_edit_saves_without_the_staff_mark(customer, product):
     )
 
 
+def test_staff_can_change_any_review(customer, staff_user, product):
+    assert make_review(customer, product).can_be_changed_by(staff_user) is True
+
+
+def test_a_staff_edit_of_someone_elses_review_marks_it(customer, staff_user, product):
+    review = make_review(customer, product, rating=1, comment="Rude words.")
+
+    review.edit(staff_user, rating=1, comment="Strong words.")
+
+    review.refresh_from_db()
+    assert review.comment == "Strong words."
+    assert review.edited_by_staff is True
+
+
+def test_a_staff_edit_of_their_own_review_is_not_marked(staff_user, product):
+    review = make_review(staff_user, product, rating=3)
+
+    review.edit(staff_user, rating=4, comment="Bought it myself.")
+
+    review.refresh_from_db()
+    assert review.edited_by_staff is False
+
+
+def test_the_authors_later_edit_keeps_the_staff_mark(customer, staff_user, product):
+    review = make_review(customer, product)
+    review.edit(staff_user, rating=2, comment="Moderated.")
+
+    review.edit(customer, rating=5, comment="My words again.")
+
+    review.refresh_from_db()
+    assert review.comment == "My words again."
+    assert review.edited_by_staff is True
+
+
 def test_deleting_a_product_deletes_its_reviews(customer, product):
     make_review(customer, product)
 
@@ -853,3 +887,160 @@ def test_signed_out_visitors_get_no_edit_or_delete(client, customer, product):
 
     assert reverse("reviews:edit", args=[review.pk]) not in text
     assert reverse("reviews:delete", args=[review.pk]) not in text
+
+
+# --- Staff moderation -------------------------------------------------------
+
+
+def test_staff_get_edit_and_delete_on_every_review(
+    client, customer, other_customer, staff_user, product
+):
+    reviews = [make_review(customer, product), make_review(other_customer, product)]
+    client.force_login(staff_user)
+
+    text = page(client, product).text
+
+    for review in reviews:
+        assert reverse("reviews:edit", args=[review.pk]) in text
+        assert reverse("reviews:delete", args=[review.pk]) in text
+
+
+@pytest.mark.parametrize("name", ["reviews:edit", "reviews:cancel"])
+def test_staff_can_open_and_cancel_an_edit_on_any_review(
+    client, customer, staff_user, product, name
+):
+    review = make_review(customer, product, comment="Customer words.")
+    client.force_login(staff_user)
+
+    response = client.get(reverse(name, args=[review.pk]))
+
+    assert response.status_code == HTTPStatus.OK
+    assert "Customer words." in response.text
+
+
+def test_a_staff_save_on_a_customers_review_shows_the_badge(
+    client, customer, staff_user, product
+):
+    review = make_review(customer, product, rating=1, comment="Rude words.")
+    client.force_login(staff_user)
+
+    response = client.post(
+        reverse("reviews:update", args=[review.pk]),
+        {"rating": 1, "comment": "Strong words."},
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert [t.name for t in response.templates][0] == SECTION
+    review.refresh_from_db()
+    assert (review.user, review.comment, review.edited_by_staff) == (
+        customer,
+        "Strong words.",
+        True,
+    )
+    assert "Edited by staff" in response.text
+
+
+def test_staff_can_delete_any_review(client, customer, staff_user, product):
+    review = make_review(customer, product, comment="Off-topic.")
+    client.force_login(staff_user)
+
+    response = client.post(reverse("reviews:delete", args=[review.pk]))
+
+    assert response.status_code == HTTPStatus.OK
+    assert [t.name for t in response.templates][0] == SECTION
+    assert not Review.objects.exists()
+    assert EMPTY_STATE in response.text
+
+
+def test_staff_without_a_purchase_get_the_note_and_a_403(client, staff_user, product):
+    client.force_login(staff_user)
+
+    note = page(client, product)
+    response = create(client, product, {"rating": 5, "comment": "Staff pick."})
+
+    assert NOT_ELIGIBLE in note.text
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert not Review.objects.exists()
+
+
+def test_staff_with_a_purchase_can_review(client, staff_user, product):
+    make_order(staff_user, product)
+    client.force_login(staff_user)
+
+    response = create(client, product, {"rating": 5, "comment": "Bought my own."})
+
+    assert response.status_code == HTTPStatus.OK
+    review = Review.objects.get(user=staff_user)
+    assert review.edited_by_staff is False
+
+
+# --- Django admin -----------------------------------------------------------
+
+
+@pytest.fixture
+def superuser(db):
+    return get_user_model().objects.create_superuser(
+        username="overseer", email="overseer@example.com", password="overseer123"
+    )
+
+
+def test_the_admin_changelist_filters_and_searches(
+    client, superuser, customer, other_customer, product
+):
+    make_review(customer, product, rating=5)
+    make_review(other_customer, product, rating=2)
+    client.force_login(superuser)
+    url = reverse("admin:reviews_review_changelist")
+
+    everything = client.get(url)
+    two_stars = client.get(url, {"rating__exact": 2})
+    by_user = client.get(url, {"q": "jordan"})
+    by_product = client.get(url, {"q": "Seraphine"})
+
+    assert everything.status_code == HTTPStatus.OK
+    assert everything.context["cl"].result_count == 2
+    assert [r.user for r in two_stars.context["cl"].result_list] == [other_customer]
+    assert [r.user for r in by_user.context["cl"].result_list] == [other_customer]
+    assert by_product.context["cl"].result_count == 2
+
+
+def test_the_admin_refuses_to_add_a_review(client, superuser):
+    client.force_login(superuser)
+
+    response = client.get(reverse("admin:reviews_review_add"))
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_the_admin_refuses_to_change_a_review(client, superuser, customer, product):
+    review = make_review(customer, product, rating=4, comment="Original.")
+    client.force_login(superuser)
+
+    response = client.post(
+        reverse("admin:reviews_review_change", args=[review.pk]),
+        {
+            "user": customer.pk,
+            "product": product.pk,
+            "rating": 1,
+            "comment": "Rewritten.",
+            "edited_by_staff": "",
+            "created_at_0": "2026-01-01",
+            "created_at_1": "00:00:00",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    review.refresh_from_db()
+    assert (review.rating, review.comment) == (4, "Original.")
+
+
+def test_the_admin_can_delete_a_review(client, superuser, customer, product):
+    review = make_review(customer, product)
+    client.force_login(superuser)
+
+    response = client.post(
+        reverse("admin:reviews_review_delete", args=[review.pk]), {"post": "yes"}
+    )
+
+    assert response.status_code == HTTPStatus.FOUND
+    assert not Review.objects.exists()

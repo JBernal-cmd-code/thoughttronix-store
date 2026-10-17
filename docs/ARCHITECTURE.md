@@ -202,9 +202,12 @@ nothing serves media (or static files — there's no whitenoise yet).
   reviews. Authors keep their edit and delete rights after a cancellation.
 - `Review.can_be_changed_by(user)` is the single permission rule for
   editing and deleting: the author, or any staff member.
-- `Review.edit(editor, rating, comment)` saves an edit. When the editor is
-  staff and isn't the author, it sets `edited_by_staff`; nothing ever
-  clears it.
+- `Review.edit(editor, rating, comment)` saves an edit. **The staff flag**:
+  when the editor is staff and isn't the author, it sets
+  `edited_by_staff`, and the card shows "Edited by staff." Nothing ever
+  clears it, the author's later edits included. A staff member editing
+  their own review is just an author. A staff delete is an ordinary
+  delete: no soft delete, no notice, and no block on re-reviewing.
 - `Review.author_name` is the display name: first name and last initial
   ("Jordan P."), the first name alone without a last name, and "Verified
   buyer" without a first name. Never the username or email. It lives on
@@ -215,3 +218,10 @@ nothing serves media (or static files — there's no whitenoise yet).
   through the reverse relation, which is how the product page reaches it.
 - No service module: eligibility reads orders, but it's a query, not a
   multi-model workflow.
+- Django admin lists every review (product, author, rating, date, the
+  staff flag), filtered by rating and searched by product name and
+  username. `ReviewAdmin` blocks add and change for everyone, superusers
+  included, the same way `SecurityEventAdmin` is locked down, so the admin
+  can't bypass the purchase rule or the staff flag. Delete is allowed.
+  Moderation itself happens on the product page; there is no back-office
+  reviews tab.

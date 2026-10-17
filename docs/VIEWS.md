@@ -117,6 +117,13 @@ looked up by pk and checked with `Review.can_be_changed_by`, and anyone
 it doesn't allow gets a **404**, so the response doesn't reveal that the
 review exists. A missing review is the same 404.
 
+Staff moderate on the product page: `can_be_changed_by` allows staff on
+every review, so Edit and Delete show on every card for them and the four
+review-pk endpoints accept their requests. A staff save of someone else's
+review sets "Edited by staff" (through `Review.edit`). Creating is not
+moderation: staff get the form only under the same eligibility rule as
+everyone else, and an ineligible staff create is a 403.
+
 Swap rules: create, update, and delete return the whole section partial
 (`reviews/partials/_reviews_section.html`), never the full page, so the
 summary always matches the list. Edit and cancel swap only the one card
