@@ -9,9 +9,10 @@ Demo logins (documented in the README):
     admin / admin123        superuser
     employee / employee123  staff, "Junior Thought Curator"
     customer / customer123  a plain customer, with order history, a live
-                            cart, and a few weeks of security activity —
-                            including one failed sign-in from an
-                            unfamiliar IP
+                            cart, a wishlist of four products (one of
+                            them unavailable), and a few weeks of
+                            security activity — including one failed
+                            sign-in from an unfamiliar IP
 """
 
 import random
@@ -31,6 +32,7 @@ from coupons.models import Coupon, CouponError
 from orders.models import Cart, Order, OrderItem
 from products.images import prepare_product_image
 from products.models import Category, Product, Tag
+from wishlists.models import Wishlist
 
 # Marketing's product images, full resolution, named <product slug>.jpg.
 # Products without one show their category placeholder.
@@ -482,6 +484,16 @@ CUSTOMER_CART = [
     ("whisper-alarm-clock", 1),
 ]
 
+# The customer demo login's wishlist: (product slug, days ago saved). Ages
+# are relative to the seed run, so the newest-first order shows; EchoPatch
+# is unavailable, so the Unavailable badge shows too.
+CUSTOMER_WISHLIST = [
+    ("pulse-halo", 1),
+    ("mindsync-duo", 4),
+    ("echopatch", 12),
+    ("longview-orbital-relay", 30),
+]
+
 # Seasonal coupons, one in each state: (code, percent off, product slugs
 # or None for the whole order, starts and expires in days from now).
 COUPONS = [
@@ -572,6 +584,7 @@ class Command(BaseCommand):
         self._create_users()
         self._create_addresses()
         self._create_customer_cart()
+        self._create_customer_wishlist()
         self._create_coupons()
         self._create_orders()
         self._create_security_history()
@@ -588,7 +601,8 @@ class Command(BaseCommand):
                 f"{Coupon.objects.count()} coupons, "
                 f"{Address.objects.count()} saved addresses, "
                 f"{SecurityEvent.objects.count()} security events, "
-                f"and a live cart for 'customer'."
+                f"a live cart and a {len(CUSTOMER_WISHLIST)}-item wishlist "
+                f"for 'customer'."
             )
         )
 
@@ -691,6 +705,21 @@ class Command(BaseCommand):
         cart = Cart.for_user(customer)
         for slug, quantity in CUSTOMER_CART:
             cart.items.create(product=Product.objects.get(slug=slug), quantity=quantity)
+
+    def _create_customer_wishlist(self):
+        """A few saved products for 'customer', backdated.
+
+        The wipe needs no extra step — the wishlist cascades with its user,
+        and its items with their products.
+        """
+        customer = get_user_model().objects.get(username="customer")
+        wishlist = Wishlist.for_user(customer)
+        now = timezone.now()
+        for slug, days_ago in CUSTOMER_WISHLIST:
+            wishlist.items.create(
+                product=Product.objects.get(slug=slug),
+                added_at=now - timedelta(days=days_ago),
+            )
 
     def _create_coupons(self):
         """The four seasonal coupons, dated relative to today."""

@@ -1,0 +1,56 @@
+{% load humanize %}
+{# The wishlist's saved products — swapped whole into #wishlist-contents #}
+{# by the remove_item endpoint. #}
+{% with items=wishlist.lines %}
+  {% if items %}
+    <div class="overflow-x-auto rounded-box bg-base-100 shadow-md">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Price</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+            <tr>
+              <td>
+                <a href="{{ item.product.get_absolute_url }}" class="flex items-center gap-4">
+                  <img src="{{ item.product.image_url }}"
+                       alt="{{ item.product.name }}"
+                       width="800" height="1000"
+                       loading="lazy"
+                       class="aspect-[4/5] w-16 rounded-box object-cover">
+                  <span class="link-hover font-semibold">{{ item.product.name }}</span>
+                </a>
+                {% if not item.product.is_available %}
+                  <span class="badge badge-warning badge-outline">Unavailable</span>
+                {% endif %}
+              </td>
+              <td>${{ item.product.price|intcomma }}</td>
+              <td class="text-right">
+                <button class="btn btn-ghost btn-sm text-error"
+                        hx-post="{% url 'wishlists:remove_item' item.pk %}"
+                        hx-target="#wishlist-contents">
+                  Remove
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="py-16 text-center">
+      <p class="text-5xl">💭</p>
+      <p class="mt-4 text-xl font-semibold">Your wishlist is empty</p>
+      <p class="mt-2 opacity-70">
+        Tap "Save to wishlist" on any product page to keep an eye on it.
+      </p>
+      <a href="{% url 'products:catalog' %}" class="btn btn-primary btn-sm mt-6">
+        Browse the catalog
+      </a>
+    </div>
+  {% endif %}
+{% endwith %}

@@ -64,11 +64,25 @@ class CategoryView(CatalogView):
 
 
 class ProductDetailView(DetailView):
-    """A single product at its slug URL."""
+    """A single product at its slug URL.
+
+    ``on_wishlist`` drives the wishlist button. It's read through the
+    reverse relation rather than ``Wishlist``, since nothing imports from
+    ``wishlists``, and it never creates a wishlist just for a page view.
+    """
 
     template_name = "products/detail.html"
     context_object_name = "product"
     queryset = Product.objects.select_related("category").prefetch_related("tags")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        context["on_wishlist"] = (
+            user.is_authenticated
+            and self.object.wishlist_items.filter(wishlist__user=user).exists()
+        )
+        return context
 
 
 # --- The back office --------------------------------------------------------

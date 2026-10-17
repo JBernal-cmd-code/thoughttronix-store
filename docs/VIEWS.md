@@ -53,6 +53,32 @@ address book.
   forgot-password link). On success the form saves the email lowercase and
   notifies the old address; the view returns to the hub with a message.
 
+## Wishlist
+
+The customer's private wishlist, in the `wishlists:` namespace. Access is
+`LoginRequiredMixin`: anonymous visitors go to login, and every signed-in
+user, **staff included**, gets in. Every view acts only on the requester's
+own wishlist; no URL takes a user id or a wishlist id.
+
+- `wishlists:detail` — `wishlist/`, the "My wishlist" page: the
+  requester's items, newest first, with an empty state. Linked from the
+  navbar.
+- `wishlists:remove_item` — `wishlist/items/<item pk>/remove/`, POST only.
+  The item is looked up through the requester's wishlist, never by bare
+  pk, so another user's item is a 404 (staff included). Deletes it and
+  re-renders the wishlist contents, which show the empty state once the
+  last item is gone.
+- `wishlists:add` — `wishlist/add/<product pk>/`, POST only. Saves the
+  product (available or not; a missing pk is a 404) and re-renders the
+  wishlist button in its saved state.
+- `wishlists:remove` — `wishlist/remove/<product pk>/`, POST only. Removes
+  the product if it's saved (otherwise does nothing) and re-renders the
+  button in its not-saved state.
+
+Add and remove are separate endpoints, not a toggle, so a repeated request
+or a stale tab can't flip the state. The product detail view puts
+`on_wishlist` in its context (false for signed-out visitors).
+
 ## Back-office pages
 
 - Back-office templates extend `templates/backoffice/base.html` — the staff

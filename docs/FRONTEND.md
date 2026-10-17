@@ -11,10 +11,32 @@
   prefixed with an underscore, never extending `base.html`.
 - Every list view gets a designed empty state, not a blank page.
 
+## Wishlist button
+
+`wishlists/partials/_wishlist_button.html` sits next to Add to cart on the
+product detail page, driven by `on_wishlist`. Three states:
+
+- Signed out: a plain "Save to wishlist" link (outline small button) to
+  login, with `next` set to the product page. No HTMX.
+- Signed in, not saved: an outline small "Save to wishlist" button that
+  HTMX-POSTs to `wishlists:add` and swaps itself (`outerHTML`).
+- Signed in, saved: a secondary small "Saved ✓ — Remove" button that
+  HTMX-POSTs to `wishlists:remove` and swaps itself.
+
+## Wishlist contents
+
+`wishlists/partials/_wishlist_contents.html` is the My wishlist page's list,
+inside `#wishlist-contents`: a table row per item (lazy thumbnail, name
+linking to the product, price, the warning "Unavailable" badge where it
+applies, a Remove button), or the empty state. Remove HTMX-POSTs to
+`wishlists:remove_item` and swaps the whole partial, as the cart does. No
+navbar count badge, so no out-of-band swap.
+
 ## Navigation
 
-- Signed-in users see Orders, Addresses, and Security (the Security Center,
-  `accounts:security`) in the navbar; staff also see Back office.
+- Signed-in users see Orders, Addresses, Security (the Security Center,
+  `accounts:security`), and Wishlist (`wishlists:detail`) in the navbar;
+  staff also see Back office.
   Anonymous visitors see only Sign in and Sign up.
 
 ## New pages: checklist
@@ -56,8 +78,8 @@
   `alt="{{ product.name }}"`, `width="800" height="1000"`, and
   `class="aspect-[4/5] … object-cover"` plus a width class.
 - Add `loading="lazy"` wherever many appear at once (the catalog grid, the
-  back-office list); not on the detail page.
-- Shown on the catalog, the detail page, the back-office product list and
-  form. Not yet in the cart, order history, or receipts.
+  back-office list, the wishlist); not on the detail page.
+- Shown on the catalog, the detail page, the wishlist, and the back-office
+  product list and form. Not yet in the cart, order history, or receipts.
 - Forms that upload need `enctype="multipart/form-data"`. The product
   form's image field renders through `products/partials/_image_field.html`.

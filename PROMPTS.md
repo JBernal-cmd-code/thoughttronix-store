@@ -28,6 +28,41 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-17 — Customer Wishlist: Phase 3, seeded demo wishlist
+
+### Prompts
+1. `/implement @prd/wishlist.md @plans/wishlist.md implement phase 3.`
+2. yes, go ahead
+3. it passed, go ahead and finish the phase
+
+### Summary
+- **Outcome:** Phase 3 is implemented and committed, together with
+  Phases 1–2 (see Sideways).
+  - `seed` gives `customer` a four-item wishlist from a new
+    `CUSTOMER_WISHLIST` table: Pulse Halo (1 day ago), MindSync Duo (4),
+    EchoPatch (12, unavailable), and Longview Orbital Relay (30). The
+    `added_at` times are relative to the run. The wipe needed no new step,
+    because the wishlist is deleted along with its user. The docstring and
+    the summary line mention the wishlist.
+  - `wishlists/tests.py` adds two tests. One checks the seeded wishlist:
+    3–4 items, only `customer`'s, at least one unavailable, each with a
+    different `added_at` in the past. The other checks that seeding twice
+    gives the same wishlist.
+  - Docs: the `seed` exception in `docs/ARCHITECTURE.md` now names
+    `wishlists`, and the wishlists section describes the seeded wishlist.
+  - The suite went from 480 to 482 passing. Ruff check and format are
+    clean. The user checked the phase in the browser and it passed.
+- **Deviations:** The tdd skill picked no behaviors to test-drive (seed
+  data has no candidates), and the user agreed (prompt 2). When asked how
+  to commit, the user chose the recommended option: one commit covering
+  Phases 1–3.
+- **Sideways:** While finishing, the agent found that wishlist Phases 1
+  and 2 had never been committed, and PROMPTS.md had no entries for them.
+  Their work shared files with Phase 3, so it couldn't be split into
+  separate commits. Everything went into one commit, and this entry covers
+  only the Phase 3 session. The agent didn't run `seed` on the local
+  database; the user did that during browser checks.
+
 ## 2026-10-10 — Account Security Center: Phase 7, admin audit log and staff recovery
 
 ### Prompts

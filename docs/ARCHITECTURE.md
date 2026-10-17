@@ -33,8 +33,12 @@ nothing serves media (or static files — there's no whitenoise yet).
 - `accounts` imports from no local app; everything else may import from it.
 - `coupons` imports from `products`; `orders` imports from `coupons`, never
   the reverse.
+- `wishlists` imports from `products`. Nothing imports from `wishlists`.
+  The product detail view reads whether a product is saved through the
+  reverse relation (`product.wishlist_items`), not the `Wishlist` model.
 - Exception: the `seed` command (`products/management/commands/seed.py`)
-  builds the whole demo world, so it imports from `coupons` and `orders`.
+  builds the whole demo world, so it imports from `coupons`, `orders`, and
+  `wishlists`.
 
 ## Per-app rules
 
@@ -155,3 +159,23 @@ nothing serves media (or static files — there's no whitenoise yet).
 - `orders/context_processors.py` — the `cart` context processor (registered
   in settings).
 - `orders/templatetags/cart_extras.py` — cart template filters.
+
+**wishlists**
+
+- Built like the cart. `Wishlist` is one per user (one-to-one, cascade),
+  created lazily by `Wishlist.for_user(user)` and nowhere else.
+  `WishlistItem` is a wishlist, a product, and `added_at`, unique per
+  (wishlist, product), newest first. Deleting a product deletes its items.
+  `added_at` is a default, not `auto_now_add`, so it can be backdated.
+- Model methods hold the logic: `add` (get-or-create, so saving twice does
+  nothing), `remove` (removing an unsaved product does nothing), `has`, and
+  `lines` (items with products loaded, for display).
+  No service module: nothing spans several models.
+- Unlike the cart, any product can be saved, available or not.
+- Private: the models are not registered in Django admin, and there is no
+  back-office page or dashboard figure. Every query goes through the
+  requester's own wishlist.
+- `seed` gives `customer` four saved products, one of them unavailable
+  (EchoPatch), with `added_at` backdated relative to the run so the
+  newest-first order shows. The wipe needs no extra step: the wishlist
+  cascades with its user.
