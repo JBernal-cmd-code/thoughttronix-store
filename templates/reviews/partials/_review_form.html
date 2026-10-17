@@ -8,20 +8,7 @@
   <div class="card-body gap-4">
     <h3 class="card-title">Write a review</h3>
 
-    <fieldset>
-      <legend class="label mb-1">Your rating</legend>
-      <div class="rating rating-lg">
-        {% for n in "12345" %}
-          <input type="radio" name="rating" value="{{ n }}"
-                 class="mask mask-star-2 bg-warning"
-                 aria-label="{{ n }} star{% if n != '1' %}s{% endif %}"
-                 {% if form.rating.value|stringformat:"s" == n %}checked{% endif %}>
-        {% endfor %}
-      </div>
-      {% for error in form.rating.errors %}
-        <p class="mt-1 text-sm text-error">{{ error }}</p>
-      {% endfor %}
-    </fieldset>
+    {% include "reviews/partials/_rating_input.html" with field=form.rating %}
 
     <div>
       <label class="label mb-1" for="id_comment">Your review</label>

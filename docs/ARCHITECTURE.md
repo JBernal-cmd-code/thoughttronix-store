@@ -199,7 +199,12 @@ nothing serves media (or static files — there's no whitenoise yet).
   Staff follow the same rule.
 - **Checked once**, at creation. A later cancellation never removes or
   hides a review, so order status changes never need to know about
-  reviews.
+  reviews. Authors keep their edit and delete rights after a cancellation.
+- `Review.can_be_changed_by(user)` is the single permission rule for
+  editing and deleting: the author, or any staff member.
+- `Review.edit(editor, rating, comment)` saves an edit. When the editor is
+  staff and isn't the author, it sets `edited_by_staff`; nothing ever
+  clears it.
 - `Review.author_name` is the display name: first name and last initial
   ("Jordan P."), the first name alone without a last name, and "Verified
   buyer" without a first name. Never the username or email. It lives on

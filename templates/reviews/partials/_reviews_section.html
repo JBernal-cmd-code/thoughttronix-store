@@ -1,5 +1,5 @@
 {# The product page's reviews section, swapped whole into #reviews by #}
-{# create so the summary always matches the list. Include with #}
+{# create, save, and delete so the summary always matches the list. Include with #}
 {# section=<ReviewSection>; create also passes form=<bound ReviewForm> on #}
 {# invalid input and already_reviewed on a repeat submission. #}
 <section id="reviews" class="mt-12">
@@ -21,7 +21,7 @@
 
   {% if already_reviewed %}
     <div role="alert" class="alert alert-info mt-6">
-      <span>You've already reviewed this product. Your review is pinned below.</span>
+      <span>You've already reviewed this product. You can edit your review below.</span>
     </div>
   {% endif %}
 

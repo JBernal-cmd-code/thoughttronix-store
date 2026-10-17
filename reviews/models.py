@@ -128,6 +128,24 @@ class Review(models.Model):
             .exists()
         )
 
+    def can_be_changed_by(self, user):
+        """The single permission rule for editing and deleting: the author,
+        or any staff member."""
+        return user.is_authenticated and (user.pk == self.user_id or user.is_staff)
+
+    def edit(self, editor, rating, comment):
+        """Save a new rating and comment on behalf of ``editor``.
+
+        A staff member editing someone else's review marks it "Edited by
+        staff". Nothing ever clears the mark, the author's own later edits
+        included.
+        """
+        self.rating = rating
+        self.comment = comment
+        if editor.is_staff and editor.pk != self.user_id:
+            self.edited_by_staff = True
+        self.save()
+
     @property
     def author_name(self):
         """First name and last initial ("Jordan P."), else "Verified buyer".

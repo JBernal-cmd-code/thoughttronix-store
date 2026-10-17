@@ -1,5 +1,8 @@
+{% load review_extras %}
 {# One review: stars, author, date, the staff-edit badge, and the comment. #}
-{# Include with review=<Review>. #}
+{# Edit and Delete show only for users the review can be changed by. Edit #}
+{# swaps just this card for its form; Delete swaps the whole #reviews #}
+{# section. Include with review=<Review>. #}
 <article id="review-{{ review.pk }}" class="card bg-base-100 shadow-md">
   <div class="card-body gap-2">
     <div class="flex flex-wrap items-center gap-3">
@@ -13,5 +16,18 @@
       {% endif %}
     </div>
     <p>{{ review.comment|linebreaksbr }}</p>
+    {% if review|changeable_by:user %}
+      <div class="card-actions justify-end">
+        <button type="button" class="btn btn-ghost btn-sm"
+                hx-get="{% url 'reviews:edit' review.pk %}"
+                hx-target="#review-{{ review.pk }}"
+                hx-swap="outerHTML">Edit</button>
+        <button type="button" class="btn btn-error btn-outline btn-sm"
+                hx-post="{% url 'reviews:delete' review.pk %}"
+                hx-target="#reviews"
+                hx-swap="outerHTML"
+                hx-confirm="Delete this review? This can't be undone.">Delete</button>
+      </div>
+    {% endif %}
   </div>
 </article>

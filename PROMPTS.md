@@ -28,6 +28,74 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-17 — Product reviews: Phase 2, editing and deleting your own review
+
+### Prompts
+1. `/implement @prd/reviews.md @plans/reviews.md implement phase 2`
+2. approved, go ahead
+3. approved, go ahead
+4. approved, go ahead
+5. approved, go ahead
+6. approved, go ahead
+7. approved, go ahead
+8. approved, go ahead
+9. verified, it passed
+
+### Summary
+- **Outcome:** The author can edit, cancel, save, and delete their own
+  review in place on the product page.
+  - **Model:** `Review.can_be_changed_by(user)` (the author or any staff
+    member) and `Review.edit(editor, rating, comment)`, which sets
+    `edited_by_staff` when staff edit someone else's review and never
+    clears it.
+  - **Views:** `reviews:edit` and `reviews:cancel` (GET, the edit-form or
+    card partial), `reviews:update` and `reviews:delete` (POST, the whole
+    section). They share `ChangeableReviewMixin`, built on Phase 1's
+    `HtmxLoginRequiredMixin`, which gives anyone `can_be_changed_by`
+    refuses a 404. An invalid save returns the edit form with
+    `HX-Retarget: #review-<pk>`, because the form itself targets the
+    section.
+  - **Templates:** a new `_review_edit_form.html` that keeps the card's
+    id, Edit and Delete on the card behind a `changeable_by` filter
+    (`reviews/templatetags/review_extras.py`), `hx-confirm` on Delete, and
+    the star radios moved into a shared `_rating_input.html`. The
+    "already reviewed" alert now says the customer can edit their review
+    below, as asked in Phase 1.
+  - **Docs:** `VIEWS.md` (the four routes, the 404 rule, the swap rules),
+    `FRONTEND.md` (the edit form, the buttons, the confirm), and
+    `ARCHITECTURE.md` (the permission rule and the edit method).
+  - **Tests:** 36 new tests. The suite went from 531 to 567 passing, Ruff
+    is clean, and `manage.py check` has no issues. The user verified the
+    phase in the browser.
+- **TDD:** The user approved three behaviors, and each went
+  RED → approval → GREEN → approval:
+  1. Another customer's edit, cancel, update, and delete return 404 and
+     change nothing.
+  2. A valid save updates the review and returns the section with the
+     new average.
+  3. Deleting your review brings the create form back.
+- **Deviations:**
+  - `can_be_changed_by` already lets staff through, because the PRD
+    defines it as one rule. The agent said so, and staff tests stay in
+    Phase 3.
+  - The agent decided these without asking, and named them:
+    - The invalid-save retarget uses `HX-Retarget` and `HX-Reswap`
+      headers.
+    - The rating input became a shared partial.
+- **Sideways:**
+  - The agent wrote the update and delete views in full while building
+    the scaffolding, so tests 2 and 3 would have passed without ever
+    failing. It said so, cut each view back to a stub to get a real RED,
+    then restored the line.
+  - Test 3 checked for the text "Your review", which the create form's
+    comment label also contains. That was a mechanical repair to
+    `section.own is None`, noted at the time.
+  - The signed-out GET tests sent form data, which the test client put
+    into the query string and so into `next`. The data now goes only with
+    POSTs.
+  - The full suite timed out once at the tool's 2-minute limit and was
+    run in the background. It was green.
+
 ## 2026-10-17 — Product reviews: Phase 1, writing and reading reviews on the product page
 
 ### Prompts

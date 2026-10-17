@@ -1,0 +1,17 @@
+{# The five-star radio input shared by the create and edit forms. Include #}
+{# with field=<the form's rating field>; its value checks the right star #}
+{# and its errors show below. #}
+<fieldset>
+  <legend class="label mb-1">Your rating</legend>
+  <div class="rating rating-lg">
+    {% for n in "12345" %}
+      <input type="radio" name="rating" value="{{ n }}"
+             class="mask mask-star-2 bg-warning"
+             aria-label="{{ n }} star{% if n != '1' %}s{% endif %}"
+             {% if field.value|stringformat:"s" == n %}checked{% endif %}>
+    {% endfor %}
+  </div>
+  {% for error in field.errors %}
+    <p class="mt-1 text-sm text-error">{{ error }}</p>
+  {% endfor %}
+</fieldset>

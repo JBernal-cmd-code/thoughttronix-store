@@ -1,0 +1,32 @@
+{# One review card's edit form, swapped in for the card (outerHTML) and #}
+{# keeping its id so Cancel can swap the card back. Save swaps the whole #}
+{# #reviews section; invalid input comes back here via HX-Retarget. #}
+{# Include with review=<Review> and form=<ReviewForm>. #}
+<form id="review-{{ review.pk }}"
+      hx-post="{% url 'reviews:update' review.pk %}"
+      hx-target="#reviews"
+      hx-swap="outerHTML"
+      class="card bg-base-100 shadow-md">
+  <div class="card-body gap-4">
+    <h3 class="card-title">Edit review</h3>
+
+    {% include "reviews/partials/_rating_input.html" with field=form.rating %}
+
+    <div>
+      <label class="label mb-1" for="id_comment_{{ review.pk }}">Your review</label>
+      <textarea name="comment" id="id_comment_{{ review.pk }}" rows="4" maxlength="2000"
+                class="textarea textarea-bordered w-full">{{ form.comment.value|default:"" }}</textarea>
+      {% for error in form.comment.errors %}
+        <p class="mt-1 text-sm text-error">{{ error }}</p>
+      {% endfor %}
+    </div>
+
+    <div class="card-actions justify-end">
+      <button type="button" class="btn btn-ghost"
+              hx-get="{% url 'reviews:cancel' review.pk %}"
+              hx-target="#review-{{ review.pk }}"
+              hx-swap="outerHTML">Cancel</button>
+      <button type="submit" class="btn btn-primary">Save review</button>
+    </div>
+  </div>
+</form>

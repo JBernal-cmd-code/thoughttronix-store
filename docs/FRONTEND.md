@@ -40,7 +40,8 @@ the product detail page, inside `<section id="reviews">`, driven by a
 
 1. **Summary:** the average as stars plus "4.5 out of 5" and the review
    count, or the designed "No reviews yet" empty state.
-2. An info alert when a repeat create found an existing review.
+2. An info alert when a repeat create found an existing review, saying
+   the customer can edit it below.
 3. **Pinned slot**, one of four states:
    - Signed out: a "Sign in to write a review" link (`link link-primary`)
      to login, with `next` set to the product page. No HTMX.
@@ -54,12 +55,25 @@ Partials:
 
 - `_review_form.html` — the create form. It HTMX-POSTs to `reviews:create`
   and swaps the whole section (`hx-target="#reviews"`, `outerHTML`). The
-  rating is five DaisyUI `rating` radio inputs (`mask mask-star-2`), the
-  comment a textarea. It's rendered by hand, so the product page needs no
-  form object; a bound `form` brings back errors and typed input.
+  comment is a textarea. It's rendered by hand, so the product page needs
+  no form object; a bound `form` brings back errors and typed input.
+- `_rating_input.html` — the star input both forms share: five DaisyUI
+  `rating` radio inputs (`mask mask-star-2`), checked from `field`'s value,
+  with its errors below.
 - `_review_card.html` — one review (`card`, `id="review-<pk>"`): stars,
   `author_name`, date, the warning outline "Edited by staff" badge when
-  `edited_by_staff` is set, and the comment.
+  `edited_by_staff` is set, and the comment. Edit and Delete render only
+  when `review|changeable_by:user` (the `review_extras` filter over
+  `Review.can_be_changed_by`) allows it. Edit HTMX-GETs `reviews:edit` and
+  swaps just this card (`outerHTML`). Delete asks first with `hx-confirm`
+  (the browser's own confirm, no custom JavaScript), then HTMX-POSTs
+  `reviews:delete` and swaps the whole section.
+- `_review_edit_form.html` — one card's edit form. It keeps the card's
+  `id="review-<pk>"`, so Cancel (HTMX-GET `reviews:cancel`) swaps the card
+  back over it. Save HTMX-POSTs `reviews:update` and swaps the whole
+  section; invalid input comes back into the card through `HX-Retarget`.
+  Its textarea id carries the review pk, so it never clashes with the
+  create form's.
 - `_stars.html` — a read-only row of five star masks (`stars` as five
   booleans, a `label` for screen readers, an optional size class).
 

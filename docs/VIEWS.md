@@ -99,10 +99,28 @@ swapped into the section. Its `next` is the page the request came from
   - Not eligible: 403, nothing created.
   - Invalid: the section, with the form's errors and the typed input.
   - Valid: saved, and the section re-renders.
+- `reviews:edit` — `reviews/<review pk>/edit/`, GET. Returns the edit-form
+  partial for that one card.
+- `reviews:cancel` — `reviews/<review pk>/cancel/`, GET. Returns the card
+  partial, unchanged.
+- `reviews:update` — `reviews/<review pk>/update/`, POST only. Invalid: the
+  edit-form partial with errors and the typed input, sent back into the
+  card with `HX-Retarget: #review-<pk>` and `HX-Reswap: outerHTML` (the
+  form itself targets the section). Valid: saved through `Review.edit`,
+  and the section re-renders.
+- `reviews:delete` — `reviews/<review pk>/delete/`, POST only. Deletes the
+  review and re-renders the section, where the create form shows again if
+  the customer is still eligible.
 
-Create always returns the whole section partial
+The four review-pk endpoints share `ChangeableReviewMixin`: the review is
+looked up by pk and checked with `Review.can_be_changed_by`, and anyone
+it doesn't allow gets a **404**, so the response doesn't reveal that the
+review exists. A missing review is the same 404.
+
+Swap rules: create, update, and delete return the whole section partial
 (`reviews/partials/_reviews_section.html`), never the full page, so the
-summary always matches the list. The product detail view puts
+summary always matches the list. Edit and cancel swap only the one card
+(`outerHTML` on `#review-<pk>`). The product detail view puts
 `reviews_section` in its context, built through `product.reviews`.
 
 ## Back-office pages
