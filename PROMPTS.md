@@ -28,6 +28,148 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-17 — Product reviews: implementation plan (no code yet)
+
+### Prompts
+1. `/prd-to-plan @prd/reviews.md`
+2. Let's merge phases 1 and 2 so that the first phase can be verified in
+   the browser. And let's also merge phase 5 (admin) into phase 4 (staff
+   member). Keep phase 3 and the seed phase separate.
+3. Update PROMPTS.md for this planning session using the format in that
+   file.
+
+### Summary
+- **Outcome:** This was a planning-only session; no application code
+  changed. The agent read the wishlist plan (to match its format), the
+  wishlist views and URLs, `docs/ARCHITECTURE.md`, `docs/VIEWS.md`, the
+  root URLconf, `ProductDetailView`, and `Order`'s statuses. It proposed
+  six phases, then wrote `plans/reviews.md` (new, uncommitted) with the
+  four the user approved:
+  1. Writing and reading reviews on the product page (model, eligibility,
+     the section with all four pinned-slot states, create with its 403,
+     duplicate, and `IntegrityError` handling, and the signed-out
+     `HX-Redirect`)
+  2. Editing and deleting your own review
+  3. Staff moderation and the admin overview
+  4. Seeded demo reviews
+
+  The plan header fixes the `reviews` app and its dependency rule, the
+  `Review` model, the access rules, the swap rules, and the URL paths.
+  Nothing is committed.
+- **Deviations:**
+  - The agent's first breakdown had a read-only Phase 1 that could only be
+    verified through tests. The agent flagged this and offered a merge.
+    The user merged it with the create phase so Phase 1 can be checked in
+    the browser.
+  - The user folded the separate admin phase into the staff-moderation
+    phase, and kept edit/delete and seed as their own phases.
+  - The user asked no follow-up questions.
+  - The agent chose details the PRD leaves open without asking, and named
+    them in its reply: the URL paths (`reviews/create/<product pk>/`,
+    `reviews/<pk>/edit|cancel|update|delete/`), a separate `update` route
+    for saving an edit, and building the sign-in/`HX-Redirect` handling in
+    Phase 1 so Phase 2 can reuse it.
+- **Sideways:**
+  - Nothing failed.
+  - The session started with `/clear`, so the agent re-explored the
+    codebase instead of relying on the design session's context.
+
+## 2026-10-17 — Product reviews: design interview and PRD (no code yet)
+
+### Prompts
+1. `/grill-me` I want to add product reviews to the store. Signed-in
+   customers should be able to type a review for a product, with a star
+   rating and a written comment, and each customer can leave only one
+   review per product. A customer can review only products they have
+   actually purchased.SoulSear owners count, their next of kin do not, so
+   eligibility belongs to the account that bought it. Customers can edit
+   and delete only their own reviews, while staff can edit and delete any
+   review. Creating, editing, and deleting a review should update in place
+   without a full page reload or losing the customer's place on the page.
+2. (Grill-me answer — which orders count as purchased) Optionm 1 is good
+3. (Grill-me answer — review after its order is cancelled) Option 1 is good
+4. (Grill-me answer — rating scale and comment) Option 1 is good
+5. (Grill-me answer — reviews section layout and order) Option 1 is good
+6. (Grill-me answer — pinned slot for signed-out and ineligible users)
+   Option 1 is good
+7. (Grill-me answer — where staff moderate) Option 1 is good
+8. (Grill-me answer — showing staff edits) Option 1 is good, with the
+   edited_by_staff flag. Let's skip the general edited note
+9. (Grill-me answer — the editing interaction) ❯ Option 1 but every
+   endpoint, along with the get edit form and cancel endpoints, must make
+   sign in and the can_be_changed_by permission on the server.
+10. (Grill-me answer — ratings outside the product page) Option 1 is good
+11. (Grill-me answer — enforcing one review per product) Option 1 is good
+12. (Grill-me answer — reviews when the account is deleted) Option 1 is
+    good
+13. (Grill-me answer — author display name) Option 2 is good
+14. (Grill-me answer — seeded reviews) Option 1 is good
+15. (Grill-me answer — Django admin) Option 1 is good
+16. (Grill-me answer — re-posting after a staff delete) Option 1 is good
+17. `/to-prd`
+18. Update PROMPTS.md for this design session using the format in that
+    file.
+
+### Summary
+- **Outcome:** This was a design-only session; no application code
+  changed. The agent first read the architecture, views, frontend, and
+  testing docs, the order and product models, the product views and
+  detail template, and the seed command. It found:
+  - orders belong to `Order.user` and have four statuses (Placed,
+    Shipped, Delivered, Cancelled); `OrderItem.product` goes null when a
+    product is deleted
+  - checkout is open to any signed-in user, staff included
+  - the wishlist's reverse-relation and HTMX-partial patterns to copy
+  - the seed's demo `customer` purchases and nine background customers
+    with RNG-built orders
+
+  Fifteen questions settled the design:
+  - any non-cancelled order makes the buying account eligible, checked
+    once at creation
+  - whole stars 1–5 and a required comment of up to 2,000 characters
+  - a product-page section: summary, the requester's pinned review or
+    form, then others newest first, unpaginated, with an empty state
+  - moderation on the product page only, through one
+    `can_be_changed_by` rule; staff edits set an `edited_by_staff` badge
+  - card↔form swaps for edit and cancel, whole-section swaps for create,
+    save, and delete
+  - a `UniqueConstraint` with a friendly "already reviewed" response
+  - cascade with user and product; "Jordan P." display names
+  - rule-abiding seed reviews; a read-and-delete-only `ReviewAdmin`;
+    staff deletion is an ordinary delete
+
+  `/to-prd` wrote `prd/reviews.md` (new, uncommitted). No plan was
+  written, and nothing is committed.
+- **Deviations:**
+  - Q7 (staff edits): the user took the `edited_by_staff` flag but
+    dropped the recommended general "edited" note, so the model has no
+    `updated_at`.
+  - Q8 (editing interaction): the user took Option 1 and added an
+    explicit requirement that every endpoint, including the GET edit-form
+    and cancel endpoints, check sign-in and `can_be_changed_by` on the
+    server.
+  - Every other answer took the recommendation (Q12's recommendation was
+    Option 2).
+  - The user asked no follow-up questions.
+  - The agent set several defaults without a question, flagging each in
+    the interview: 403 for an ineligible create, 404 for another user's
+    review, `hx-confirm` for delete, an `HX-Redirect` to login for
+    signed-out HTMX requests (offered "unless you object"; the user didn't
+    object), staff following the same purchase rule, and unavailable
+    products being reviewable. The PRD also added details never
+    discussed: no service module, the seed summary line reporting a
+    review count, and the full docs and testing checklists.
+- **Sideways:**
+  - Nothing failed.
+  - Staff eligibility was answered from the code instead of asked:
+    checkout is only sign-in gated, so staff follow the same rule.
+  - The Django admin question surfaced that the admin's change form would
+    bypass both the eligibility check and the staff flag, which is why
+    add and change are blocked there.
+  - The first edit to this log failed on an indentation mismatch in its
+    anchor text and was retried; no history was touched.
+  - The session started with `/clear`.
+
 ## 2026-10-17 — Customer Wishlist: Phase 3, seeded demo wishlist
 
 ### Prompts
