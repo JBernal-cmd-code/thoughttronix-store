@@ -1,3 +1,22 @@
+## Product Reviews
+
+1.
+
+In phase 2, one of the behaviors picked for TDD was that a customer can't edit or delete someone else's review. The test for this was test_another_customers_review_is_a_404_and_unchanged. I this was a good TDD candidate since it is a security rule. If it was broken, anyone signed in could edit another person's review just by changing the review number. The test makes a review for one customer, then logs in as a different customer and tries to edit, cancel, update, and delete that review. It checks that every one of those gives a 404 and that the review didn't change. The first time it ran, it failed because all four gave a 200, since the code wasn't checking who was asking. After the ownership check was added, the test passed. Since I saw it fail first and then pass after the fix, I know the check is what's actually protecting the reviews.
+
+2.
+
+A review gets deleted by DeleteReviewView in reviews/views.py on line 103, it inherits from ChangeableReviewMixin, which this is what gives it the sign-in and permission checks. The delete URL is in reviews/urls.py on lines 21-23, and it sends the POST from the Delete button to this view. ChangeableReviewMixin is in reviews/views.py on line 56, and it inherits from HtmxLoginRequiredMixin, so anyone not signed in gets sent to the login page. The view doesn't look up the review on its own. It uses get_review() on line 62, which finds the review by the pk in the URL, and then line 66 calls review.can_be_changed_by(self.request.user). If that comes back false, line 67 raises a 404. The actual rule is in reviews/models.py. The can_be_changed_by method starts on line 131, and line 134 checks that the user is signed in and is either the person who wrote the review or a staff member. Being the writer is an ownership rule, and being staff is a role rule. If the user is neither, they get a 404, so nothing gets deleted and they can't even tell the review is there. This keeps people from deleting other people's reviews by changing the number in the URL.
+
+3.
+
+The HTMX interaction I traced is the delete button on a review. The button is in templates/reviews/partials/_review_card.html. Line 26 has the hx-post that sends the request to the delete URL, line 27 has hx-target="#reviews", and line 28 has hx-swap="outerHTML".=This means the whole reviews section gets replaced when the response comes back. The request goes to reviews/<int:pk>/delete/ in reviews/urls.py on lines 21-23, which points to DeleteReviewView in reviews/views.py on line 103. The view deletes the review on line 108, and on line 109 it sends back the reviews section partial, templates/reviews/partials/_reviews_section.html, instead of a whole page. That partial starts with <section id="reviews"> on line 5, so HTMX puts the new section right where the old one was and nothing else on the page moves. When I tested it, my review disappeared, the rating and review count updated, and the form to write a review came back, all without the page reloading.
+
+4.
+
+One decision from my grill-me session was which orders count as "purchased" for leaving a review. The two options were any order that isn't cancelled, or only orders that were marked Delivered. Delivered-only would mean the customer actually has the product, but it depends on staff updating orders to Delivered. If staff forgot, nobody would ever be able to leave a review. I chose any order that isn't cancelled, because the requirement says purchased, not received. The tradeoff of this is I accepted is that a customer can review a product before it even shows up. This decision is in my PRD in Implementation Decisions of the Eligibility part, and in the code it's the is_eligible method in reviews/models.py on line 117.
+
+
 ## Account Security Center
 
 1.
