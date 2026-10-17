@@ -28,6 +28,80 @@ Each entry has this shape:
     - **Deviations:** recommendations overridden, follow-up questions asked
     - **Sideways:** failures, wrong turns, and how they were caught
 
+## 2026-10-17 — Product reviews: Phase 1, writing and reading reviews on the product page
+
+### Prompts
+1. `/implement @prd/reviews.md @plans/reviews.md implement phase 1`
+2. approved, go ahead
+3. approved, make it pass
+4. approved, move on
+5. Approved. The crash is the missing behavior, so accept it as RED. Make
+   sure the alert wording is updated in Phase 2.
+6. approved, move on
+7. approved, make it pass
+8. Manual verification passed. I had to run migrate before seed, because
+   the reviews table didn't exist yet. Please include migrate in future
+   verification steps.
+
+### Summary
+- **Outcome:** A new `reviews` app (`reviews:` namespace).
+  - **Model:** `Review` (user and product cascade, rating 1–5, a required
+    comment of at most 2,000 characters where whitespace-only is refused,
+    `edited_by_staff`, a backdatable `created_at`, unique per user and
+    product, newest first). It has `Review.is_eligible`, `author_name`,
+    and `ReviewQuerySet.section`. The product page builds the section
+    through `product.reviews`, so nothing imports from `reviews`.
+  - **Create view:** `reviews:create` is POST-only and HTMX. Its order of
+    checks is: already reviewed (shows the existing review and an alert,
+    including an `IntegrityError` race), then not eligible (403), then
+    invalid (the section with errors and the typed input), then valid
+    (the section re-renders).
+  - **Sign-in:** a new `HtmxLoginRequiredMixin` in `accounts/mixins.py`
+    gives a signed-out HTMX request an `HX-Redirect` to login, with `next`
+    taken from the path of `HX-Current-URL`. Phase 2 will reuse it.
+  - **Templates:** the section, card, create-form, and stars partials
+    under `templates/reviews/partials/`, included below the product
+    details.
+  - **Docs:** `ARCHITECTURE.md`, `VIEWS.md`, `FRONTEND.md`, and the
+    `CLAUDE.md` layout are updated.
+  - **Tests:** 49 new tests in `reviews/tests.py`. The suite went to 531
+    passing, Ruff is clean, there are no missing migrations, and a forced
+    Tailwind build compiled the star and rating classes. The user verified
+    the phase in the browser.
+- **TDD:** The user approved three behaviors, and each went
+  RED → approval → GREEN → approval:
+  1. Eligibility by order status.
+  2. Duplicate create.
+  3. `HX-Redirect` for a signed-out HTMX request.
+- **Deviations:**
+  - The duplicate-create test's RED was an `IntegrityError` crash, not an
+    assertion failure. The agent flagged that this breaks the TDD skill's
+    rule, and the user accepted the crash as RED because it was the
+    missing behavior.
+  - The agent changed the PRD's alert wording ("can edit it below") to
+    "Your review is pinned below", since Edit doesn't exist until Phase 2.
+    The user asked that it be updated in Phase 2.
+  - The agent decided these without asking, and named them:
+    - Invalid input re-renders the whole section, not only the form.
+    - The duplicate check runs before eligibility, so a review outlives a
+      later cancellation.
+    - `HX-Redirect` returns a 200, the same convention django-htmx uses.
+    - An author with no last name is shown by first name alone.
+- **Sideways:**
+  - The first race test inserted the competing review inside the view's
+    savepoint, so the rollback removed it too and the test failed. The
+    agent saw this was a fault in the test, moved the insert to just
+    after validation, and left the assertions unchanged.
+  - The first `_stars.html` built its `aria-label` with a filter chain
+    that counted characters. The agent noticed before running anything
+    and passed the label in explicitly.
+  - One test matched exact whitespace in the radio-input HTML. It was
+    replaced with a regex.
+  - `tailwind build` said "up to date", so the agent ran `--force`.
+  - The manual verification steps left out `migrate`. The user had to run
+    it before `seed`, because the reviews table didn't exist. Future
+    verification steps will include it.
+
 ## 2026-10-17 — Product reviews: implementation plan (no code yet)
 
 ### Prompts

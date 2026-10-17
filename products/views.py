@@ -69,6 +69,7 @@ class ProductDetailView(DetailView):
     ``on_wishlist`` drives the wishlist button. It's read through the
     reverse relation rather than ``Wishlist``, since nothing imports from
     ``wishlists``, and it never creates a wishlist just for a page view.
+    ``reviews_section`` comes the same way, through ``product.reviews``.
     """
 
     template_name = "products/detail.html"
@@ -82,6 +83,7 @@ class ProductDetailView(DetailView):
             user.is_authenticated
             and self.object.wishlist_items.filter(wishlist__user=user).exists()
         )
+        context["reviews_section"] = self.object.reviews.section(self.object, user)
         return context
 
 

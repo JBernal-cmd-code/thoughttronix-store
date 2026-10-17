@@ -32,6 +32,39 @@ applies, a Remove button), or the empty state. Remove HTMX-POSTs to
 `wishlists:remove_item` and swaps the whole partial, as the cart does. No
 navbar count badge, so no out-of-band swap.
 
+## Reviews section
+
+`reviews/partials/_reviews_section.html` sits below the product details on
+the product detail page, inside `<section id="reviews">`, driven by a
+`ReviewSection` (`section`). In order:
+
+1. **Summary:** the average as stars plus "4.5 out of 5" and the review
+   count, or the designed "No reviews yet" empty state.
+2. An info alert when a repeat create found an existing review.
+3. **Pinned slot**, one of four states:
+   - Signed out: a "Sign in to write a review" link (`link link-primary`)
+     to login, with `next` set to the product page. No HTMX.
+   - Signed in, not eligible: a short note that only customers who've
+     purchased the product can review it.
+   - Eligible, no review yet: the create form.
+   - Already reviewed: "Your review" and the customer's own card.
+4. Everyone else's reviews, newest first, the requester's own excluded.
+
+Partials:
+
+- `_review_form.html` — the create form. It HTMX-POSTs to `reviews:create`
+  and swaps the whole section (`hx-target="#reviews"`, `outerHTML`). The
+  rating is five DaisyUI `rating` radio inputs (`mask mask-star-2`), the
+  comment a textarea. It's rendered by hand, so the product page needs no
+  form object; a bound `form` brings back errors and typed input.
+- `_review_card.html` — one review (`card`, `id="review-<pk>"`): stars,
+  `author_name`, date, the warning outline "Edited by staff" badge when
+  `edited_by_staff` is set, and the comment.
+- `_stars.html` — a read-only row of five star masks (`stars` as five
+  booleans, a `label` for screen readers, an optional size class).
+
+Ratings appear only on the product detail page.
+
 ## Navigation
 
 - Signed-in users see Orders, Addresses, Security (the Security Center,

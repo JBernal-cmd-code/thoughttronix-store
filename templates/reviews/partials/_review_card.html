@@ -1,0 +1,17 @@
+{# One review: stars, author, date, the staff-edit badge, and the comment. #}
+{# Include with review=<Review>. #}
+<article id="review-{{ review.pk }}" class="card bg-base-100 shadow-md">
+  <div class="card-body gap-2">
+    <div class="flex flex-wrap items-center gap-3">
+      {% include "reviews/partials/_stars.html" with stars=review.stars label=review.rating|stringformat:"s"|add:" out of 5 stars" %}
+      <span class="font-semibold">{{ review.author_name }}</span>
+      <time datetime="{{ review.created_at|date:'c' }}" class="text-sm opacity-70">
+        {{ review.created_at|date:"M j, Y" }}
+      </time>
+      {% if review.edited_by_staff %}
+        <span class="badge badge-warning badge-outline badge-sm">Edited by staff</span>
+      {% endif %}
+    </div>
+    <p>{{ review.comment|linebreaksbr }}</p>
+  </div>
+</article>

@@ -23,6 +23,7 @@ A server-rendered Django 6 storefront and back office. The PRD (`prd/core-platfo
 - `orders/` — cart, checkout, orders, and back-office order management
 - `dashboard/` — the staff analytics dashboard
 - `wishlists/` — the customer's private wishlist
+- `reviews/` — verified-purchaser product reviews on the product page
 - `PROMPTS.md` — the AI-usage log
 - `templates/` — all templates, project-level and per app
 - `assets/` — static sources (Tailwind input, vendored HTMX, images)

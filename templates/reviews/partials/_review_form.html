@@ -1,0 +1,39 @@
+{# The create form in the pinned slot. Posts with HTMX and swaps the whole #}
+{# #reviews section. Rendered by hand so the product page needs no form #}
+{# object; a bound form=<ReviewForm> brings back errors and typed input. #}
+<form hx-post="{% url 'reviews:create' section.product.pk %}"
+      hx-target="#reviews"
+      hx-swap="outerHTML"
+      class="card bg-base-100 shadow-md">
+  <div class="card-body gap-4">
+    <h3 class="card-title">Write a review</h3>
+
+    <fieldset>
+      <legend class="label mb-1">Your rating</legend>
+      <div class="rating rating-lg">
+        {% for n in "12345" %}
+          <input type="radio" name="rating" value="{{ n }}"
+                 class="mask mask-star-2 bg-warning"
+                 aria-label="{{ n }} star{% if n != '1' %}s{% endif %}"
+                 {% if form.rating.value|stringformat:"s" == n %}checked{% endif %}>
+        {% endfor %}
+      </div>
+      {% for error in form.rating.errors %}
+        <p class="mt-1 text-sm text-error">{{ error }}</p>
+      {% endfor %}
+    </fieldset>
+
+    <div>
+      <label class="label mb-1" for="id_comment">Your review</label>
+      <textarea name="comment" id="id_comment" rows="4" maxlength="2000"
+                class="textarea textarea-bordered w-full">{{ form.comment.value|default:"" }}</textarea>
+      {% for error in form.comment.errors %}
+        <p class="mt-1 text-sm text-error">{{ error }}</p>
+      {% endfor %}
+    </div>
+
+    <div class="card-actions justify-end">
+      <button type="submit" class="btn btn-primary">Post review</button>
+    </div>
+  </div>
+</form>

@@ -1,0 +1,7 @@
+{# A read-only row of five stars. Include with stars=<five booleans>, #}
+{# label=<what screen readers hear>, and an optional size class. #}
+<div class="flex gap-0.5" role="img" aria-label="{{ label }}">
+  {% for filled in stars %}
+    <div class="mask mask-star-2 {{ size|default:'size-4' }} {% if filled %}bg-warning{% else %}bg-base-content/20{% endif %}"></div>
+  {% endfor %}
+</div>

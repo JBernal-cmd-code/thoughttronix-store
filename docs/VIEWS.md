@@ -79,6 +79,32 @@ Add and remove are separate endpoints, not a toggle, so a repeated request
 or a stale tab can't flip the state. The product detail view puts
 `on_wishlist` in its context (false for signed-out visitors).
 
+## Reviews
+
+Product reviews, in the `reviews:` namespace. Every endpoint requires
+sign-in, enforced on the server, through `HtmxLoginRequiredMixin`
+(`accounts/mixins.py`): a signed-out request goes to login, and a
+signed-out **HTMX** request gets an empty 200 with `HX-Redirect` to login
+instead, so the whole browser navigates rather than the login page being
+swapped into the section. Its `next` is the page the request came from
+(the path and query of `HX-Current-URL`). No review URL takes a user id.
+
+- `reviews:create` — `reviews/create/<product pk>/`, POST only. A missing
+  product is a 404. In order:
+  - Already reviewed (a stale tab or a double click): the section, with the
+    existing review pinned and an "already reviewed" alert. Checked before
+    eligibility, so a review outlives a later cancellation. A simultaneous
+    duplicate, refused by the unique constraint (`IntegrityError`), is
+    answered the same way.
+  - Not eligible: 403, nothing created.
+  - Invalid: the section, with the form's errors and the typed input.
+  - Valid: saved, and the section re-renders.
+
+Create always returns the whole section partial
+(`reviews/partials/_reviews_section.html`), never the full page, so the
+summary always matches the list. The product detail view puts
+`reviews_section` in its context, built through `product.reviews`.
+
 ## Back-office pages
 
 - Back-office templates extend `templates/backoffice/base.html` — the staff

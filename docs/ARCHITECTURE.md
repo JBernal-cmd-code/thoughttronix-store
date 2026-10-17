@@ -36,6 +36,10 @@ nothing serves media (or static files — there's no whitenoise yet).
 - `wishlists` imports from `products`. Nothing imports from `wishlists`.
   The product detail view reads whether a product is saved through the
   reverse relation (`product.wishlist_items`), not the `Wishlist` model.
+- `reviews` imports from `products` and `orders` (and `accounts`). Nothing
+  imports from `reviews`. The product detail view builds the reviews
+  section through the reverse relation
+  (`product.reviews.section(product, user)`), not the `Review` model.
 - Exception: the `seed` command (`products/management/commands/seed.py`)
   builds the whole demo world, so it imports from `coupons`, `orders`, and
   `wishlists`.
@@ -179,3 +183,30 @@ nothing serves media (or static files — there's no whitenoise yet).
   (EchoPatch), with `added_at` backdated relative to the run so the
   newest-first order shows. The wipe needs no extra step: the wishlist
   cascades with its user.
+
+**reviews**
+
+- `Review` is a user (cascade), a product (cascade), a whole-star `rating`
+  (1–5), a required `comment` (at most 2,000 characters; only whitespace
+  counts as empty and is refused), `edited_by_staff` (default false), and
+  `created_at` (a default, not `auto_now_add`, so it can be backdated; no
+  `updated_at`). Unique per (user, product) at the database level. Newest
+  first.
+- **Eligibility** is `Review.is_eligible(user, product)`: the user's own
+  account (`Order.user`) has an order containing the product that isn't
+  Cancelled. Placed, Shipped, and Delivered all count; the names typed on
+  an order give no one eligibility; product availability doesn't matter.
+  Staff follow the same rule.
+- **Checked once**, at creation. A later cancellation never removes or
+  hides a review, so order status changes never need to know about
+  reviews.
+- `Review.author_name` is the display name: first name and last initial
+  ("Jordan P."), the first name alone without a last name, and "Verified
+  buyer" without a first name. Never the username or email. It lives on
+  `Review`, so `accounts` stays unaware of reviews.
+- `ReviewQuerySet.section(product, user)` builds a `ReviewSection` for one
+  requester: count, average, their own review, whether they may review,
+  and everyone else's reviews (newest first, their own excluded). It works
+  through the reverse relation, which is how the product page reaches it.
+- No service module: eligibility reads orders, but it's a query, not a
+  multi-model workflow.
